@@ -73,10 +73,12 @@ def conditionals(url, params=None):
     elif GM_BASE in url:
 
         gm_sources = gm_source_maker(url)
-        if gf_source_maker(title=gm_sources['title']) and not 'view.php?' in url:
+
+        if gf_source_maker(title=gm_sources['title']) and not 'view.php?' in url and not 'episode' in url:
             links = gm_sources['links'] + gf_source_maker(title=gm_sources['title'])['links']
         else:
             links = gm_sources['links']
+
         stream = stream_picker(links)
 
         return conditionals(stream)
@@ -140,6 +142,7 @@ def check_stream(stream_list, shuffle_list=False, start_from=0, show_pd=False, c
 
 
 def stream_picker(links):
+
     if len(links) == 1:
 
         stream = links[0][1]

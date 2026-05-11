@@ -20,6 +20,7 @@ def gm_source_maker(url):
     if 'episode' in url:
 
         html = Net().http_POST(url.partition('?')[0], form_data=url.partition('?')[2]).content
+        title = iwrapper(html, 'div').__next__().text
 
     else:
 
@@ -34,36 +35,31 @@ def gm_source_maker(url):
 
         for episode in episodes:
 
+            pts = iwrapper(episode, 'a')
+            lks = iwrapper(episode, 'a', ret='href')
+
+            for link_ in lks:
+                links.append(link_)
+
             if '<p style="margin-top:0px; margin-bottom:4px;">' in episode:
 
                 host = iwrapper(episode, 'p').__next__().text.split('<')
 
-                pts = iwrapper(episode, 'a')
-                lks = iwrapper(episode, 'a', ret='href')
-
                 for p in pts:
-                    hl.append(u''.join([host, kodi.i18n(30225), p.text]))
-
-                for link_ in lks:
-                    links.append(link_)
+                    hl.append(''.join([host, kodi.i18n(30225), p.text]))
 
             else:
 
-                pts = iwrapper(episode, 'a')
-                lks = iwrapper(episode, 'a', ret='href')
-
                 for p in pts:
                     hl.append(p.text)
-
-                for link_ in lks:
-                    links.append(link_)
 
         links = [urljoin(GM_BASE, link) for link in links]
         hosts = [host.replace(u'προβολή στο ', kodi.i18n(30015)) for host in hl]
 
         links_list = list(zip(hosts, links))
 
-        data = {'links': links_list}
+        # noinspection PyUnboundLocalVariable
+        data = {'links': links_list, 'title': title}
 
         if '<p class="text-muted text-justify">' in html:
 
