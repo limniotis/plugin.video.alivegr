@@ -18,15 +18,10 @@ cache_method = FunctionCache(cacheDirectory).cache_method
 ########################################################################################################################
 
 ART_ID = 'resource.images.alivegr.artwork'
-LOGOS_ID = 'resource.images.alivegr.logos'
 PLUGINS_ID = 'script.module.resolveurl.pluginsgr'
 PLUGINS_PATH = 'special://home/addons/{0}/resources/plugins/'.format(PLUGINS_ID)
-YT_ADDON_ID = 'plugin.video.youtube'
-YT_ADDON = 'plugin://{0}'.format(YT_ADDON_ID)
 YT_URL = 'https://www.youtube.com/watch?v='
 YT_API = 'https://www.youtube.com/youtubei/v1/browse?key={}'
-YT_PREFIX = YT_ADDON + '/play/?video_id='
-PLAY_ACTION = '?action=play&url='
 ALIVEGR = (
     '42bzpmLoN2Xyd2L3FmcvYmY0IGN3YmZ2QDZ0EGN4EWMwQGOzcDZxYGZ1EjYyUzYvADdodWasl2dU9SbvNmL05WZ052bj'
     'JXZzVnY1hGdpdmL0NXan9yL6MHc0RHa'
@@ -35,11 +30,9 @@ ALIVEGR = (
 ########################################################################################################################
 
 WEBSITE = 'https://github.com/Twilight0/plugin.video.alivegr'
-FACEBOOK = 'https://www.facebook.com/alivegr/'
 TWITTER = 'https://x.com/TwilightZer0'
 PAYPAL = 'https://www.paypal.me/AliveGR'
 PATREON = 'https://www.patreon.com/twilight0'
-SUPPORT = 'https://github.com/Twilight0/plugin.video.alivegr/issues'
 FORUM = 'https://github.com/Twilight0/plugin.video.alivegr/discussions'
 
 ########################################################################################################################
@@ -190,8 +183,6 @@ VOD_GENRE_FILTER_MAP = {
     '20': ('παιδικό',)
 }
 
-ALL_VOD_CHARS = {char for chars in VOD_FILTER_MAP.values() for char in chars}
-
 ########################################################################################################################
 
 PINNED = join(dataPath, 'pinned.txt')
@@ -200,12 +191,16 @@ PLAYBACK_HISTORY = join(dataPath, 'playback_history.list')
 
 ########################################################################################################################
 
-CACHE_DEBUG = Addon().getSetting('do_not_use_cache') == 'true' and Addon().getSetting('debug') == 'true'
-SEPARATOR = ' - ' if Addon().getSetting('wrap_labels') == '1' else '[CR]'
+def cache_debug():
+    return Addon().getSetting('do_not_use_cache') == 'true' and Addon().getSetting('debug') == 'true'
+
+
+def separator():
+    return ' - ' if Addon().getSetting('wrap_labels') == '1' else '[CR]'
 
 
 def cache_duration(duration):
-    if CACHE_DEBUG:
+    if cache_debug():
         return 0
     else:
         return duration

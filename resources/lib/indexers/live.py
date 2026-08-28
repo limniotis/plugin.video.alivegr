@@ -52,10 +52,6 @@ class Indexer:
                 py3_dec(thgiliwt('=' + ALIVEGR))
             ).content
 
-            # result = Net().http_GET('https://pastebin.com/raw/YxxuQEtP').content
-
-            # result = bourtsa(b64decode(result))
-
         else:
 
             if kodi.setting('local_remote') == '0':
@@ -66,7 +62,6 @@ class Indexer:
                 result = Net().http_GET(kodi.setting('live_remote')).content
             else:
                 result = Net().http_GET(thgiliwt('=' + ALIVEGR)).content
-                # result = bourtsa(b64decode(result))
 
         try:
             channels = json.loads(result)
@@ -77,6 +72,9 @@ class Indexer:
         live_list = []
 
         year = datetime.now().year
+
+        lang_split = kodi.setting('lang_split')
+        sys_lang = kodi.infoLabel('System.Language')
 
         for channel in channels['channels']:
 
@@ -100,16 +98,16 @@ class Indexer:
                 info = kodi.i18n(int(info))
 
             if ' - ' in info:
-                if kodi.setting('lang_split') == '0':
-                    if 'Greek' in kodi.infoLabel('System.Language'):
+                if lang_split == '0':
+                    if 'Greek' in sys_lang:
                         info = info.partition(' - ')[2]
-                    elif 'English' in kodi.infoLabel('System.Language'):
+                    elif 'English' in sys_lang:
                         info = info.partition(' - ')[0]
                     else:
                         info = info
-                elif kodi.setting('lang_split') == '1':
+                elif lang_split == '1':
                     info = info.partition(' - ')[0]
-                elif kodi.setting('lang_split') == '2':
+                elif lang_split == '2':
                     info = info.partition(' - ')[2]
                 else:
                     info = info
@@ -134,20 +132,23 @@ class Indexer:
 
         live_data, updated = self.live()
 
-        live_group = int(kodi.setting('live_group')) - 1
+        live_group_str = kodi.setting('live_group')
+        live_group = int(live_group_str) - 1
+        switcher_mode = kodi.setting('live_switcher_mode')
 
         try:
             group = str(list(LIVE_GROUPS.values())[live_group])
         except IndexError:
             group = None
 
-        if kodi.setting('live_group') not in ('0', '10') and query is None:
+        if live_group_str not in ('0', '10') and query is None:
 
             live_data = [item for item in live_data if item['group'] == group]
 
-        elif kodi.setting('live_group') == '10' and query is None:
+        elif live_group_str == '10' and query is None:
 
-            live_data = [item for item in live_data if item['title'] in pinned_from_file(PINNED)]
+            pinned = set(pinned_from_file(PINNED))
+            live_data = [item for item in live_data if item['title'] in pinned]
 
         for item in live_data:
 
@@ -157,9 +158,7 @@ class Indexer:
                 }
             )
 
-        for item in live_data:
-
-            if kodi.setting('live_group') == '10':
+            if live_group_str == '10':
                 pin_cm = {'title': 30337, 'query': {'action': 'unpin', 'query': item['title']}}
             else:
                 pin_cm = {'title': 30336, 'query': {'action': 'pin', 'query': item['title']}}
@@ -168,7 +167,7 @@ class Indexer:
 
             group_changer = {'title': 30034, 'query': {'action': 'live_switcher'}}
 
-            if kodi.setting('live_switcher_mode') == '1':
+            if switcher_mode == '1':
                 menu.insert(1, group_changer)
 
             if item['website'] != 'None':
@@ -177,11 +176,11 @@ class Indexer:
 
             item.update({'cm': menu})
 
-        if kodi.setting('live_switcher_mode') == '0':
+        if switcher_mode == '0':
 
-            if kodi.setting('live_group') == '0':
+            if live_group_str == '0':
                 label = kodi.i18n(30048)
-            elif kodi.setting('live_group') == '10':
+            elif live_group_str == '10':
                 label = kodi.i18n(30282)
             else:
                 group = int(list(LIVE_GROUPS.values())[live_group])

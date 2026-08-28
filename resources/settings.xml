@@ -579,37 +579,6 @@
 						<heading>30476</heading>
 					</control>
 				</setting>
-				<setting id="top50_local" type="path" label="30479" help="">
-					<level>0</level>
-					<default/>
-					<constraints>
-						<writable>false</writable>
-						<allowempty>true</allowempty>
-					</constraints>
-					<dependencies>
-						<dependency type="visible">
-							<condition operator="is" setting="debug">true</condition>
-						</dependency>
-					</dependencies>
-					<control type="button" format="file">
-						<heading>30479</heading>
-					</control>
-				</setting>
-				<setting id="top50_remote" type="string" label="30480" help="">
-					<level>0</level>
-					<default/>
-					<constraints>
-						<allowempty>true</allowempty>
-					</constraints>
-					<dependencies>
-						<dependency type="visible">
-							<condition operator="is" setting="debug">true</condition>
-						</dependency>
-					</dependencies>
-					<control type="edit" format="string">
-						<heading>30480</heading>
-					</control>
-				</setting>
 				<setting id="do_not_use_cache" type="boolean" label="30481" help="">
 					<level>0</level>
 					<default>false</default>

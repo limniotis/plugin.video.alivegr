@@ -15,7 +15,7 @@ from tulip.utils import iteritems
 from urllib.parse import urljoin
 from ..modules.themes import iconname
 from ..modules.source_makers import gm_source_maker
-from ..modules.constants import cache_method, cache_duration, YT_ADDON, GM_MUSIC
+from ..modules.constants import cache_method, cache_duration, GM_MUSIC
 from ..modules.utils import yt_playlist
 from . import vod
 
@@ -26,8 +26,6 @@ class Indexer:
     def __init__(self):
 
         self.list = []; self.data = []
-        self.mgreekz_id = 'https://www.youtube.com/channel/UClMj1LyMRBMu_TG1B1BirqQ/'
-        self.mgreekz_id = self.mgreekz_id.replace('https://www.youtube.com/channel', '{0}/channel'.format(YT_ADDON))
         if Addon().getSetting('audio_only') == 'true' and kodi.condVisibility('Window.IsVisible(music)'):
             self.content = 'songs'
             self.infotype = 'music'
@@ -53,33 +51,6 @@ class Indexer:
                 'fanart': 'https://cdn.allwallpaper.in/wallpapers/1280x720/1895/music-hd-1280x720-wallpaper.jpg',
                 'isFolder': 'True'
             }
-            # ,
-            # {
-            #     'title': kodi.i18n(30126),
-            #     'action': 'mgreekz_index',
-            #     'image': 'https://pbs.twimg.com/profile_images/697098521527328772/VY8e_klm_400x400.png',
-            #     'fanart': kodi.addonmedia(
-            #         addonid=ART_ID, theme='networks', path='mgz_fanart.jpg', media_subfolder=False
-            #     ),
-            #     'isFolder': 'False', 'isPlayable': 'False'
-            # }
-            # ,
-            # {
-            #     'title': kodi.i18n(30269),
-            #     'action': 'top50_list',
-            #     'url': 's1GeuATNw9GdvcXYy9Cdl5mLydWZ2lGbh9yL6MHc0RHa',
-            #     'image': kodi.addonInfo('icon'),
-            #     'fanart': 'https://i.ytimg.com/vi/vtjL9IeowUs/maxresdefault.jpg'
-            # }
-            # ,
-            # {
-            #     'title': kodi.i18n(30292),
-            #     'action': 'techno_choices',
-            #     'url': 'PLZF-_NNdxpb5s1vjh6YSMTyjjlfiZhgbp',
-            #     'image': kodi.addonInfo('icon'),
-            #     'fanart': 'https://i.ytimg.com/vi/vtjL9IeowUs/maxresdefault.jpg',
-            #     'isFolder': 'True'
-            # }
         ]
 
         if kodi.condVisibility('Window.IsVisible(music)'):
@@ -145,6 +116,8 @@ class Indexer:
         else:
             icon = iconname('music')
 
+        gm_link = None
+
         for item in items:
 
             title = iwrapper(item.text, 'a').__next__().text
@@ -152,7 +125,9 @@ class Indexer:
             link = urljoin(vod.GM_BASE, link)
 
             if 'gapi.client.setApiKey' in html:
-                link = gm_source_maker(url)['links'][0]
+                if gm_link is None:
+                    gm_link = gm_source_maker(url)['links'][0]
+                link = gm_link
 
             data = {'title': title, 'url': link, 'image': icon}
 
@@ -211,87 +186,9 @@ class Indexer:
             item.update({'action': 'play', 'isFolder': 'False', 'isPlayable': 'True'})
             add_to_playlist = {'title': 30226, 'query': {'action': 'add_to_playlist'}}
             clear_playlist = {'title': 30227, 'query': {'action': 'clear_playlist'}}
-            try:
-                item.update({'cm': [add_to_playlist, clear_playlist], 'album': album.encode('latin-1'), 'tracknumber': count})
-            except:
-                item.update({'cm': [add_to_playlist, clear_playlist], 'album': album, 'tracknumber': count})
+            item.update({'cm': [add_to_playlist, clear_playlist], 'album': album, 'tracknumber': count})
 
         directory.builder(self.list, content=self.content, infotype=self.infotype)
-
-    # def mgreekz_index(self):
-    #
-    #     kodi.execute('Container.Update("{0}")'.format(self.mgreekz_id))
-
-    # @cache_method(cache_duration(2880))
-    # def _top50(self, url):
-    #
-    #     if kodi.setting('debug') == 'false':
-    #
-    #         playlist = Net().http_GET(thgiliwt(url), headers={'User-Agent': 'AliveGR, version: ' + kodi.version()}).content
-    #
-    #     else:
-    #
-    #         if kodi.setting('local_remote') == '0':
-    #             local = kodi.setting('top50_local')
-    #             try:
-    #                 with open(local, encoding='utf-8') as xml:
-    #                     playlist = xml.read()
-    #             except Exception:
-    #                 with open(local) as xml:
-    #                     playlist = xml.read()
-    #         elif kodi.setting('local_remote') == '1':
-    #             playlist = Net().http_GET(kodi.setting('top50_remote')).content
-    #         else:
-    #             playlist = Net().http_GET(url).content
-    #
-    #     self.data = iwrapper(playlist, 'item')
-    #
-    #     for item in self.data:
-    #
-    #         title = parseDOM(item, 'title')[0]
-    #         genre = parseDOM(item, 'genre')[0]
-    #         url = parseDOM(item, 'url')[0]
-    #         image = thumb_maker(url.rpartition('=')[2])
-    #         plot = parseDOM(item, 'description')[0]
-    #         duration = parseDOM(item, 'duration')[0].split(':')
-    #         duration = (int(duration[0]) * 60) + int(duration[1])
-    #
-    #         item_data = (
-    #             {
-    #                 'label': title, 'title': title.partition(' - ')[2], 'image': image, 'url': url, 'plot': plot,
-    #                 'comment': plot, 'duration': duration, 'genre': genre
-    #             }
-    #         )
-    #
-    #         self.list.append(item_data)
-    #
-    #     return self.list
-
-    # def top50_list(self, url):
-    #
-    #     self.list = self._top50(url)
-    #
-    #     if self.list is None:
-    #         log('Developer\'s picks section failed to load')
-    #         return
-    #
-    #     for count, item in list(enumerate(self.list, start=1)):
-    #         add_to_playlist = {'title': 30226, 'query': {'action': 'add_to_playlist'}}
-    #         clear_playlist = {'title': 30227, 'query': {'action': 'clear_playlist'}}
-    #         item.update(
-    #             {
-    #                 'action': 'play', 'isFolder': 'False', 'cm': [add_to_playlist, clear_playlist],
-    #                 'album': kodi.i18n(30269), 'fanart': 'https://i.ytimg.com/vi/vtjL9IeowUs/maxresdefault.jpg',
-    #                 'tracknumber': count, 'code': count, 'artist': [item['label'].partition(' - ')[0]],
-    #                 'isPlayable': 'True'
-    #             }
-    #         )
-    #
-    #         if kodi.setting('audio_only') == 'true' and kodi.condVisibility('Window.IsVisible(music)'):
-    #             item['artist'] = item['artist'][0]
-    #
-    #     kodi.setsortmethod('tracknum', mask='%A')
-    #     directory.builder(self.list, content=self.content, infotype=self.infotype)
 
     def techno_choices(self, url):
 

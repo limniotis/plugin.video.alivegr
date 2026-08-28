@@ -22,8 +22,6 @@ class Indexer:
 
     def kids(self):
 
-        print(py3_dec(thgiliwt(GFK_GETTER)))
-
         self.list = [
             {
                 'title': kodi.i18n(30078),

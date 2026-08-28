@@ -29,7 +29,7 @@ class Indexer:
 
         if category == 'person':
             self.list = vod.Indexer().persons_index(GM_SEARCH, post=post)
-        if category == 'movies':
+        elif category == 'movies':
             self.list = vod.Indexer().listing(GM_SEARCH, post=post, get_listing=True)
             self.list.extend(gf_source_maker(GFM_GETTER, search=str_input))
             self.list.extend(gf_source_maker(GFK_GETTER, search=str_input))
@@ -224,10 +224,7 @@ class Indexer:
 
                     return
 
-                try:
-                    str_input = cleantitle.strip_accents(str_input.decode('utf-8'))
-                except (UnicodeEncodeError, UnicodeDecodeError, AttributeError):
-                    str_input = cleantitle.strip_accents(str_input)
+                str_input = cleantitle.strip_accents(str_input)
 
             add_to_file(SEARCH_HISTORY, u"Theater,{0}".format(str_input))
 

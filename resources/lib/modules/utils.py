@@ -10,9 +10,8 @@ from os import rename
 from xbmcaddon import Addon
 import pickled
 import sqlite3
-import copy
 from itertags import iwrapper
-from tulip import kodi, directory, cleantitle, bookmarks
+from tulip import kodi, directory, cleantitle
 from netclient import Net
 from urllib.parse import parse_qsl, urlparse
 from tulip.log import log
@@ -22,8 +21,6 @@ from tulip.kodi import update_repositories
 from os import path
 from time import time
 from base64 import b64decode
-from zlib import decompress, compress
-from scrapetube.wrapper import list_playlist_videos, list_playlists
 
 
 ########################################################################################################################
@@ -41,70 +38,11 @@ def stream_picker(links):
         return popped
 
 
-# def m3u8_picker(url):
-#
-#     try:
-#
-#         if '|' not in url:
-#             raise TypeError
-#
-#         link, _, head = url.rpartition('|')
-#
-#         headers = dict(parse_qsl(head))
-#         streams = m3u8.load(link, headers=headers).playlists
-#
-#     except TypeError:
-#
-#         streams = m3u8.load(url).playlists
-#
-#     if not streams:
-#         return url
-#
-#     qualities = []
-#     urls = []
-#
-#     for stream in streams:
-#
-#         quality = repr(stream.stream_info.resolution).strip('()').replace(', ', 'x')
-#
-#         if quality == 'None':
-#             quality = 'Auto'
-#
-#         uri = stream.absolute_uri
-#
-#         qualities.append(quality)
-#
-#         try:
-#
-#             if '|' not in url:
-#                 raise TypeError
-#
-#             urls.append(uri + ''.join(url.rpartition('|')[1:]))
-#
-#         except TypeError:
-#             urls.append(uri)
-#
-#     if len(qualities) == 1:
-#
-#         kodi.infoDialog(kodi.i18n(30220).format(qualities[0]))
-#
-#         return url
-#
-#     links = list(zip(qualities, urls))
-#
-#     return stream_picker(links)
-
-
 def i18n():
 
     lang = 'el_GR' if 'Greek' in kodi.infoLabel('System.Language') else 'en_GB'
 
     return lang
-
-
-def thumb_maker(video_id, hq=False):
-
-    return 'http://img.youtube.com/vi/{0}/{1}.jpg'.format(video_id, 'mqdefault' if not hq else 'maxresdefault')
 
 
 def reset_idx(notify=True, forceit=False):
@@ -200,11 +138,6 @@ def call_info():
     kodi.execute('ActivateWindow(programs,"plugin://plugin.video.alivegr/?content_type=executable&action=info",return)')
 
 
-def greeting():
-
-    kodi.infoDialog(kodi.i18n(30263))
-
-
 def refresh():
 
     kodi.refresh()
@@ -222,39 +155,6 @@ def thgiliwt(s):
     string = s[::-1]
 
     return b64decode(string)
-
-
-def pawsesac(s, ison=''):
-
-    string = s.swapcase()
-
-    string = string + ison
-    return string
-
-
-def bourtsa(s):
-
-    return decompress(s)
-
-
-def xteni(s):
-
-    return compress(s)
-
-
-def geo_loc():
-
-    json_obj = Net().http_GET('https://extreme-ip-lookup.com/json/').get_json()
-
-    if not json_obj or 'error' in json_obj:
-        json_obj = Net().http_GET('https://ip-api.com/json/').get_json()
-
-    if not json_obj or 'error' in json_obj:
-        json_obj = Net().http_GET('https://geoip.siliconweb.com/geo.json').get_json()
-
-    country = json_obj.get('country', 'Worldwide')
-
-    return country
 
 
 def pin_to_file(file_, txt):
@@ -669,10 +569,7 @@ def pp():
 
 def disclaimer():
 
-    try:
-        text = kodi.addonInfo('disclaimer').decode('utf-8')
-    except (UnicodeEncodeError, UnicodeDecodeError, AttributeError):
-        text = kodi.addonInfo('disclaimer')
+    text = kodi.addonInfo('disclaimer')
 
     kodi.dialog.textviewer(kodi.addonInfo('name') + ', ' + kodi.i18n(30129), text)
 
@@ -779,11 +676,6 @@ def checkpoint():
 
     check = time() + 10800
 
-    try:
-        new_version_prompt = Addon().getSetting('new_version_prompt') == 'true' and remote_version() > int(kodi.version().replace('.', ''))
-    except ValueError:  # will fail if version install is alpha or beta
-        new_version_prompt = False
-
     rename_history_csv()
 
     if new_version():
@@ -807,9 +699,16 @@ def checkpoint():
 
         kodi.setSetting('last_check', str(check))
 
-    elif new_version_prompt and time() > float(Addon().getSetting('last_check')):
+    elif Addon().getSetting('new_version_prompt') == 'true' and time() > float(Addon().getSetting('last_check') or '0'):
 
-        prompt()
+        try:
+            newer = remote_version() > int(kodi.version().replace('.', ''))
+        except Exception:  # network failure, or alpha/beta version strings failing int()
+            newer = False
+
+        if newer:
+            prompt()
+
         kodi.setSetting('last_check', str(check))
 
 
@@ -885,27 +784,24 @@ def page_menu(pages, reset=False):
 @cache_function(cache_duration(60))
 def yt_playlist(url):
 
+    from scrapetube.wrapper import list_playlist_videos
+
     return list_playlist_videos(url)
-
-
-@cache_function(cache_duration(480))
-def yt_playlists(url):
-
-    return list_playlists(url)
 
 ########################################################################################################################
 
 def lists_merger(list_1, list_2, key='title'):
 
-    merged_list = copy.deepcopy(list_1)
+    merged_list = [dict(i) for i in list_1]
 
     matched_list_2_indices = set()
+
+    list_2_lowered = [(i, item2, item2[key].lower()) for i, item2 in enumerate(list_2)]
 
     for item1 in merged_list:
         title1 = item1[key].lower().strip()
 
-        for i, item2 in enumerate(list_2):
-            title2 = item2[key].lower()
+        for i, item2, title2 in list_2_lowered:
 
             if title1 in title2:
 

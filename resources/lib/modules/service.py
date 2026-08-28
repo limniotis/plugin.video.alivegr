@@ -9,6 +9,7 @@ import collections
 import http.server
 import json
 import queue
+import re
 import socketserver
 import threading
 import sys
@@ -53,6 +54,7 @@ class StreamManager:
         self.audio_init_tag = None
         self.media_buffer = collections.deque(maxlen=150)
         self.clients = []
+        self.lock = threading.Lock()
         self.stop_event = threading.Event()
         self.init_ready = threading.Event()
         self.first_ts = None
@@ -209,12 +211,13 @@ class StreamManager:
                             if self.video_init_tag:
                                 self.init_ready.set()
                         else:
-                            self.media_buffer.append(tag)
-                            for client_q in list(self.clients):
-                                try:
-                                    client_q.put_nowait(tag)
-                                except queue.Full:
-                                    pass
+                            with self.lock:
+                                self.media_buffer.append(tag)
+                                for client_q in list(self.clients):
+                                    try:
+                                        client_q.put_nowait(tag)
+                                    except queue.Full:
+                                        pass
 
         except Exception as e:
             if not self.stop_event.is_set():
@@ -293,13 +296,18 @@ class ProxyRequestHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(404, "Stream not initialized")
             return
 
+        # Use one captured manager for the rest of the request, so a concurrent
+        # swap or None-out of the global cannot split lock, registration and
+        # cleanup across different StreamManager instances.
+        manager = g_stream_manager
+
         # Satisfy ResolveURL Probe
         self.send_response(200)
         self.send_header('Content-Type', 'video/x-flv')
         self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
 
-        if not g_stream_manager.init_ready.wait(timeout=15):
+        if not manager.init_ready.wait(timeout=15):
             xbmc.log('AliveGR Proxy: Timeout waiting for MoQ Media.', xbmc.LOGDEBUG)
             return
 
@@ -308,33 +316,41 @@ class ProxyRequestHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(b'FLV\x01\x05\x00\x00\x00\x09\x00\x00\x00\x00')
 
             # 2. Write the cached Video/Audio Sequence Headers
-            if g_stream_manager.video_init_tag:
-                self.wfile.write(g_stream_manager.video_init_tag)
-            if g_stream_manager.audio_init_tag:
-                self.wfile.write(g_stream_manager.audio_init_tag)
-
-            # 3. Write rolling buffer
-            for tag in list(g_stream_manager.media_buffer):
-                self.wfile.write(tag)
+            if manager.video_init_tag:
+                self.wfile.write(manager.video_init_tag)
+            if manager.audio_init_tag:
+                self.wfile.write(manager.audio_init_tag)
         except (ConnectionResetError, BrokenPipeError):
             xbmc.log('AliveGR Proxy: ResolveURL probe check finished.', xbmc.LOGDEBUG)
             return
         except Exception as e:
             return
 
+        # Register the client and snapshot the buffer atomically against the
+        # reader's append+fanout, so no tag is lost between snapshot and queue.
         client_q = queue.Queue(maxsize=300)
-        g_stream_manager.clients.append(client_q)
-        xbmc.log('AliveGR Proxy: FLV muxing live to Kodi player...', xbmc.LOGDEBUG)
+        with manager.lock:
+            manager.clients.append(client_q)
+            snapshot = list(manager.media_buffer)
 
         try:
+            # 3. Write rolling buffer, then mux live
+            for tag in snapshot:
+                self.wfile.write(tag)
+
+            xbmc.log('AliveGR Proxy: FLV muxing live to Kodi player...', xbmc.LOGDEBUG)
+
             while True:
                 tag = client_q.get(timeout=15)
                 self.wfile.write(tag)
         except:
             pass
         finally:
-            if g_stream_manager and client_q in g_stream_manager.clients:
-                g_stream_manager.clients.remove(client_q)
+            with manager.lock:
+                try:
+                    manager.clients.remove(client_q)
+                except ValueError:
+                    pass
 
     def log_message(self, format, *args):
         return
@@ -387,15 +403,27 @@ class AliveGRService(xbmc.Monitor):
         super(AliveGRService, self).__init__()
         self.addon = xbmcaddon.Addon(__addon_id__)
         self.auto_start = self.addon.getSetting('auto_start') == 'true'
+        self.snapshot = self._settings_snapshot()
 
         start_server()
 
         if self.auto_start:
             self.launch_logic()
 
+    def _settings_snapshot(self):
+
+        try:
+            addon = xbmcaddon.Addon(__addon_id__)
+            settings_xml = xbmcvfs.translatePath(addon.getAddonInfo('path')) + '/resources/settings.xml'
+            with open(settings_xml, encoding='utf-8') as f:
+                ids = re.findall(r'<setting id="([^"]+)"', f.read())
+            return {i: addon.getSetting(i) for i in ids}
+        except Exception:
+            return {}
+
     def onSettingsChanged(self):
 
-        new_val = self.addon.getSetting('auto_start') == 'true'
+        new_val = xbmcaddon.Addon(__addon_id__).getSetting('auto_start') == 'true'
 
         if new_val and not self.auto_start:
 
@@ -403,26 +431,31 @@ class AliveGRService(xbmc.Monitor):
 
         self.auto_start = new_val
 
-        if __addon_id__ in xbmc.getInfoLabel('Container.PluginName'):
+        # Refresh the container only when a setting other than bookkeeping
+        # values actually changed, so programmatic writes (last_check, debug
+        # reset) do not trigger spurious directory rebuilds.
+        old_snapshot = self.snapshot
+        new_snapshot = self._settings_snapshot()
+        self.snapshot = new_snapshot
+
+        if old_snapshot and new_snapshot:
+            changed = {k for k in new_snapshot if new_snapshot[k] != old_snapshot.get(k)}
+            refresh_needed = bool(changed - {'last_check', 'debug'})
+        else:
+            refresh_needed = True
+
+        if refresh_needed and __addon_id__ in xbmc.getInfoLabel('Container.PluginName'):
             xbmc.executebuiltin('Container.Refresh')
 
-    def onPlayBackStopped(self):
+    def onNotification(self, sender, method, data):
 
         global g_stream_manager
 
-        if g_stream_manager:
+        # Player.OnStop fires for both user stops and natural playback end
+        # (natural end carries data {"end": true}); there is no Player.OnEnded.
+        if method == 'Player.OnStop' and g_stream_manager:
 
             xbmc.log('AliveGR Proxy: Playback stopped, killing MoQ socket.', xbmc.LOGDEBUG)
-            g_stream_manager.stop()
-            g_stream_manager = None
-
-    def onPlayBackEnded(self):
-
-        global g_stream_manager
-
-        if g_stream_manager:
-
-            xbmc.log('AliveGR Proxy: Playback ended, killing MoQ socket.', xbmc.LOGDEBUG)
             g_stream_manager.stop()
             g_stream_manager = None
 
@@ -435,10 +468,12 @@ class AliveGRService(xbmc.Monitor):
             if retries > 60:
                 xbmc.log('AliveGR launched: Retry #' + str(retries), xbmc.LOGDEBUG)
                 break
-            xbmc.sleep(200)
+            if self.waitForAbort(0.2):
+                return
             retries += 1
 
-        xbmc.executebuiltin(f'RunAddon({__addon_id__})')
+        if not self.abortRequested():
+            xbmc.executebuiltin(f'RunAddon({__addon_id__})')
 
 
 if __name__ == '__main__':

@@ -162,9 +162,3 @@ def other_addon_settings(query):
     except Exception:
 
         pass
-
-
-def force():
-
-    kodi.execute('UpdateAddonRepos')
-    kodi.infoDialog(kodi.i18n(30261))

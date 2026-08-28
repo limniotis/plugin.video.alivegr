@@ -3,10 +3,8 @@
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
         <import addon="resource.images.alivegr.artwork" version="3.0.6"/>
-<!--        <import addon="resource.images.alivegr.logos" version="1.0.2"/>-->
         <import addon="script.module.resolveurl" version="5.1.199"/>
         <import addon="script.module.resolveurl.pluginsgr" version="0.1.16"/>
-<!--        <import addon="script.module.urldispatcher" version="1.0.0"/>-->
         <import addon="script.module.scrapetube" version="2.6.1"/>
         <import addon="script.module.netclient" version="1.1.2"/>
         <import addon="script.module.unicache" version="1.0.0"/>
@@ -14,14 +12,12 @@
         <import addon="script.module.tulip" version="4.0.3"/>
         <import addon="script.module.fuzzywuzzy" version="0.17.0"/>
         <import addon="script.module.websocket" version="1.6.4"/>
-<!--        <import addon="script.module.json_repair" version="0.52.5"/>-->
-<!--        <import addon="script.module.m3u8" version="6.0.0"/>-->
         <import addon="plugin.video.youtube" version="7.4.3"/>
     </requires>
     <extension point="xbmc.python.pluginsource" library="router.py">
         <provides>video audio executable</provides>
     </extension>
-    <extension point="xbmc.service" library="resources/lib/modules/service.py" start="login"/>
+    <extension point="xbmc.service" library="resources/lib/modules/service.py"/>
     <extension point="xbmc.addon.metadata">
         <platform>all</platform>
         <reuselanguageinvoker>true</reuselanguageinvoker>

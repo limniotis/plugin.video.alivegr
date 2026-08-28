@@ -7,18 +7,18 @@
 
 import re
 import json
+from concurrent.futures import ThreadPoolExecutor
 from xbmcaddon import Addon
 from urllib.parse import urljoin, urlparse, parse_qsl
 
 from tulip import directory, kodi, cleantitle
-from tulip.log import log
 from tulip.utils import list_divider, iteritems
 from netclient import Net
 from useragents import spoofer
 from itertags import iwrapper
 from ..modules.themes import iconname
 from ..modules.constants import (
-    cache_function, cache_method, cache_duration, SEPARATOR, GM_BASE, GM_MOVIES, GM_SHOWS, GM_SERIES, GM_ANIMATION,
+    cache_function, cache_method, cache_duration, separator, GM_BASE, GM_MOVIES, GM_SHOWS, GM_SERIES, GM_ANIMATION,
     GM_THEATER, GM_SPORTS, GM_SHORTFILMS, GM_MUSIC, GM_SEARCH, GM_PERSON, GM_EPISODE, VOD_FILTER_MAP,
     VOD_YEAR_FILTER_MAP, VOD_GENRE_FILTER_MAP, GENRES, GF_BASE, GFK_GETTER, GFM_GETTER
 )
@@ -26,7 +26,6 @@ from ..modules.utils import page_menu, lists_merger
 from ..modules.source_makers import gist_getter
 
 
-@cache_function(cache_duration(720))
 def get_genres(item):
     genres = item.get('genre') or 'άλλο'
     return genres if isinstance(genres, list) else [genres]
@@ -188,8 +187,11 @@ class Indexer:
 
         self.data, _ = gm_root(GM_MOVIES)
 
+        vod_group = Addon().getSetting('vod_group')
+        switcher_mode = Addon().getSetting('vod_switcher_mode')
+
         try:
-            self.list = [item for item in self.data if item['group'] == Addon().getSetting('vod_group')]
+            self.list = [item for item in self.data if item['group'] == vod_group]
         except Exception:
             kodi.setSetting('vod_group', '30213')
             self.list = self.data
@@ -198,12 +200,12 @@ class Indexer:
 
             item.update({'icon': iconname('movies'), 'action': 'listing', 'isFolder': 'True'})
 
-            if Addon().getSetting('vod_switcher_mode') == '1':
+            if switcher_mode == '1':
                 self.group_changer.update({'url': GM_MOVIES})
 
                 item.update({'cm': [{'title': 30034, 'query': self.group_changer}]})
 
-        if Addon().getSetting('vod_switcher_mode') == '0':
+        if switcher_mode == '0':
 
             self.switch.update({'url': GM_MOVIES})
 
@@ -215,8 +217,11 @@ class Indexer:
 
         self.data = gm_root(GM_SHORTFILMS)[0]
 
+        vod_group = Addon().getSetting('vod_group')
+        switcher_mode = Addon().getSetting('vod_switcher_mode')
+
         try:
-            self.list = [item for item in self.data if item['group'] == Addon().getSetting('vod_group')]
+            self.list = [item for item in self.data if item['group'] == vod_group]
         except Exception:
             kodi.setSetting('vod_group', '30213')
             self.list = self.data
@@ -224,12 +229,12 @@ class Indexer:
         for item in self.list:
             item.update({'icon': iconname('short'), 'action': 'listing', 'isFolder': 'True'})
 
-            if Addon().getSetting('vod_switcher_mode') == '1':
+            if switcher_mode == '1':
                 self.group_changer.update({'url': GM_SHORTFILMS})
 
                 item.update({'cm': [{'title': 30034, 'query': self.group_changer}]})
 
-        if Addon().getSetting('vod_switcher_mode') == '0':
+        if switcher_mode == '0':
 
             self.switch.update({'url': GM_SHORTFILMS})
             self.list.insert(0, self.switch)
@@ -240,8 +245,11 @@ class Indexer:
 
         self.data = gm_root(GM_SERIES)[0]
 
+        vod_group = Addon().getSetting('vod_group')
+        switcher_mode = Addon().getSetting('vod_switcher_mode')
+
         try:
-            self.list = [item for item in self.data if item['group'] == Addon().getSetting('vod_group')]
+            self.list = [item for item in self.data if item['group'] == vod_group]
         except Exception:
             kodi.setSetting('vod_group', '30213')
             self.list = self.data
@@ -249,12 +257,12 @@ class Indexer:
         for item in self.list:
             item.update({'icon': iconname('series'), 'action': 'listing', 'isFolder': 'True'})
 
-            if Addon().getSetting('vod_switcher_mode') == '1':
+            if switcher_mode == '1':
                 self.group_changer.update({'url': GM_SERIES})
 
                 item.update({'cm': [{'title': 30034, 'query': self.group_changer}]})
 
-        if Addon().getSetting('vod_switcher_mode') == '0':
+        if switcher_mode == '0':
             self.switch.update({'url': GM_SERIES})
 
             self.list.insert(0, self.switch)
@@ -265,8 +273,11 @@ class Indexer:
 
         self.data = gm_root(GM_SHOWS)[0]
 
+        vod_group = Addon().getSetting('vod_group')
+        switcher_mode = Addon().getSetting('vod_switcher_mode')
+
         try:
-            self.list = [item for item in self.data if item['group'] == Addon().getSetting('vod_group')]
+            self.list = [item for item in self.data if item['group'] == vod_group]
         except Exception:
             kodi.setSetting('vod_group', '30213')
             self.list = self.data
@@ -274,12 +285,12 @@ class Indexer:
         for item in self.list:
             item.update({'icon': iconname('shows'), 'action': 'listing', 'isFolder': 'True'})
 
-            if Addon().getSetting('vod_switcher_mode') == '1':
+            if switcher_mode == '1':
                 self.group_changer.update({'url': GM_SHOWS})
 
                 item.update({'cm': [{'title': 30034, 'query': self.group_changer}]})
 
-        if Addon().getSetting('vod_switcher_mode') == '0':
+        if switcher_mode == '0':
 
             self.switch.update({'url': GM_SHOWS})
             self.list.insert(0, self.switch)
@@ -290,8 +301,11 @@ class Indexer:
 
         self.data = gm_root(GM_ANIMATION)[0]
 
+        vod_group = Addon().getSetting('vod_group')
+        switcher_mode = Addon().getSetting('vod_switcher_mode')
+
         try:
-            self.list = [item for item in self.data if item['group'] == Addon().getSetting('vod_group')]
+            self.list = [item for item in self.data if item['group'] == vod_group]
         except Exception:
             kodi.setSetting('vod_group', '30213')
             self.list = self.data
@@ -299,12 +313,12 @@ class Indexer:
         for item in self.list:
             item.update({'icon': iconname('cartoon_series'), 'action': 'listing', 'isFolder': 'True'})
 
-            if Addon().getSetting('vod_switcher_mode') == '1':
+            if switcher_mode == '1':
                 self.group_changer.update({'url': GM_ANIMATION})
 
                 item.update({'cm': [{'title': 30034, 'query': self.group_changer}]})
 
-        if Addon().getSetting('vod_switcher_mode') == '0':
+        if switcher_mode == '0':
             self.switch.update({'url': GM_ANIMATION})
 
             self.list.insert(0, self.switch)
@@ -315,8 +329,11 @@ class Indexer:
 
         self.data = gm_root(GM_THEATER)[0]
 
+        vod_group = Addon().getSetting('vod_group')
+        switcher_mode = Addon().getSetting('vod_switcher_mode')
+
         try:
-            self.list = [item for item in self.data if item['group'] == Addon().getSetting('vod_group')]
+            self.list = [item for item in self.data if item['group'] == vod_group]
         except Exception:
             kodi.setSetting('vod_group', '30213')
             self.list = self.data
@@ -325,13 +342,13 @@ class Indexer:
 
             item.update({'icon': iconname('theater'), 'action': 'listing', 'isFolder': 'True'})
 
-            if Addon().getSetting('vod_switcher_mode') == '1':
+            if switcher_mode == '1':
 
                 self.group_changer.update({'url': GM_THEATER})
 
                 item.update({'cm': [{'title': 30034, 'query': self.group_changer}]})
 
-        if Addon().getSetting('vod_switcher_mode') == '0':
+        if switcher_mode == '0':
             self.switch.update({'url': GM_THEATER})
 
             self.list.insert(0, self.switch)
@@ -373,12 +390,12 @@ class Indexer:
 
         if indexer.startswith(
                 ('l=', 'g=', 's=', 'p=', 'c=')
-        ) and 'movies.php' in url or 'shortfilm.php' in url or 'theater.php' in url:
+        ) and ('movies.php' in url or 'shortfilm.php' in url or 'theater.php' in url) and any(self.years):
 
-            for content in self.years:
-                links = GM_BASE + url.rpartition('/')[2].partition('&')[0] + '&' + content
-                htmls = Net().http_GET(links).content
-                self.data.append(htmls)
+            base = GM_BASE + url.rpartition('/')[2].partition('&')[0]
+
+            with ThreadPoolExecutor(max_workers=len(self.years) or 1) as ex:
+                self.data = list(ex.map(lambda c: Net().http_GET(base + '&' + c).content, self.years))
 
             result = u''.join(self.data)
 
@@ -442,6 +459,8 @@ class Indexer:
 
                 self.list = lists_merger(self.list, gf_movies_list, 'title')
 
+        action_type = Addon().getSetting('action_type')
+
         for item in self.list:
 
             try:
@@ -460,9 +479,9 @@ class Indexer:
                         GM_MOVIES, GM_THEATER, GM_SHORTFILMS, GM_PERSON, GF_BASE, GFK_GETTER
                 )
             ) or isinstance(item.get('urls'), list):
-                if Addon().getSetting('action_type') == '0':
+                if action_type == '0':
                     item.update({'action': 'play', 'isFolder': 'False', 'isPlayable': 'True'})
-                elif Addon().getSetting('action_type') == '1':
+                elif action_type == '1':
                     item.update({'action': 'play'})
             elif url.startswith(GM_SPORTS):
                 item.update({'action': 'events', 'isFolder': 'True'})
@@ -565,6 +584,8 @@ class Indexer:
             u'Οκτ': '10', u'Νοέ': '11', u'Δεκ': '12'
         }
 
+        sep = separator()
+
         for eid, title in episodes:
 
             link = re.search(r'\'([\w-]+)\', \'(\w{1,2})\'', eid)
@@ -594,7 +615,7 @@ class Indexer:
 
             self.list.append(
                 {
-                    'label': name + SEPARATOR + title, 'title': name + ' - ' + title, 'url': link, 'group': group,
+                    'label': name + sep + title, 'title': name + ' - ' + title, 'url': link, 'group': group,
                     'name': name, 'image': image, 'plot': plot, 'year': year,
                     'genre': [genre]
                 }
@@ -610,9 +631,11 @@ class Indexer:
 
         cm = [refresh_cm]
 
+        action_type = Addon().getSetting('action_type')
+
         for item in self.list:
 
-            if Addon().getSetting('action_type') == '0':
+            if action_type == '0':
                 item.update({'action': 'play', 'isFolder': 'False', 'isPlayable': 'True', 'cm': cm})
             else:
                 item.update({'action': 'directory', 'isFolder': 'True', 'isPlayable': 'False', 'cm': cm})
@@ -693,13 +716,15 @@ class Indexer:
     def event_list(self, url):
 
         html = Net().http_GET(url).content
-        items = iwrapper(html, 'div', attrs={'style': 'margin-bottom: 10px'})
+        items = list(iwrapper(html, 'div', attrs={'style': 'margin-bottom: 10px'}))
+
+        if items:
+            image = iwrapper(html, 'img', attrs={'class': 'thumbnail img-responsive pull-right'}, ret='src').__next__()
+            image = urljoin(GM_BASE, image)
 
         for item in items:
 
             title = iwrapper(item.text, 'a', attrs={'class': 'btn btn-default'}).__next__().text
-            image = iwrapper(html, 'img', attrs={'class': 'thumbnail img-responsive pull-right'}, ret='src').__next__()
-            image = urljoin(GM_BASE, image)
             link = iwrapper(item, 'button', attrs={'class': 'btn btn-default'}, ret='href').__next__()
             link = urljoin(GM_BASE, link)
             plot = iwrapper(item, 'span', attrs={'class': 'pull-right'}).__next__().text

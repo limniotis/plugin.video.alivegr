@@ -40,35 +40,6 @@ class Indexer:
                 'show_item': self.get_setting('show_live') == 'true',
                 'isFolder': 'True', 'isPlayable': 'False'
             }
-            # ,
-            # {
-            #     'title': kodi.i18n(30001),
-            #     'action': 'live_m3u',
-            #     'icon': iconname('monitor'),
-            #     'show_item': kodi.setting('show_live') == 'false' and kodi.setting('show_m3u') == 'true',
-            #     'isFolder': 'False' if kodi.setting('live_tv_mode') == '1' else 'True', 'isPlayable': 'False'
-            # }
-            # ,
-            # {
-            #     'title': kodi.i18n(30036),
-            #     'action': 'pvr_client',
-            #     'icon': iconname('guide'),
-            #     'show_item': kodi.setting('show_pvr') == 'true'
-            # }
-            # ,
-            # {
-            #     'title': kodi.i18n(30008),
-            #     'action': 'networks',
-            #     'icon': iconname('networks'),
-            #     'show_item': kodi.setting('show_networks') == 'true'
-            # }
-            # ,
-            # {
-            #     'title': kodi.i18n(30123),
-            #     'action': 'news',
-            #     'icon': iconname('news'),
-            #     'show_item': kodi.setting('show_news') == 'true'
-            # }
             ,
             {
                 'title': kodi.i18n(30031),
@@ -119,14 +90,6 @@ class Indexer:
                 'isFolder': 'True', 'isPlayable': 'False'
             }
             ,
-            # {
-            #     'title': kodi.i18n(30094),
-            #     'action': 'gm_sports',
-            #     'icon': iconname('sports'),
-            #     'show_item': kodi.setting('show_sports') == 'true',
-            #     'isFolder': 'True', 'isPlayable': 'False'
-            # }
-            # ,
             {
                 'title': kodi.i18n(30032),
                 'action': 'kids',
@@ -134,13 +97,6 @@ class Indexer:
                 'show_item': self.get_setting('show_kids') == 'true',
                 'isFolder': 'True', 'isPlayable': 'False'
             }
-            # ,
-            # {
-            #     'title': kodi.i18n(30002),
-            #     'action': 'radio',
-            #     'icon': iconname('radios'),
-            #     'show_item': kodi.setting('show_radio') == 'true'
-            # }
             ,
             {
                 'title': kodi.i18n(30125),

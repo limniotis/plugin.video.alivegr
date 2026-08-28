@@ -9,6 +9,7 @@ import json
 
 from xbmcaddon import Addon
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 from random import shuffle
 from resolveurl import add_plugin_dirs, resolve as resolve_url
 from resolveurl.hmf import HostedMediaFile
@@ -28,7 +29,7 @@ from ..indexers.vod import GM_MOVIES, GM_SHORTFILMS, GM_THEATER, GM_BASE, GF_BAS
 from .source_makers import gm_source_maker, gf_source_maker
 from ..resolvers import youtube
 from .constants import (
-    YT_URL, SEPARATOR, PLUGINS_PATH, cache_function, cache_duration, PLAYBACK_HISTORY,
+    YT_URL, separator, PLUGINS_PATH, cache_function, cache_duration, PLAYBACK_HISTORY,
     GFM_GETTER, GFK_GETTER
 )
 from .utils import add_to_file
@@ -78,8 +79,13 @@ def conditionals(url, params=None):
 
         gm_sources = gm_source_maker(url)
 
-        if gf_source_maker(GFM_GETTER, title=gm_sources['title']) and not 'view.php?' in url and not 'episode' in url:
-            links = gm_sources['links'] + gf_source_maker(GFM_GETTER, title=gm_sources['title'])['links']
+        if 'view.php?' in url or 'episode' in url:
+            gf = None
+        else:
+            gf = gf_source_maker(GFM_GETTER, title=gm_sources['title'])
+
+        if gf:
+            links = gm_sources['links'] + gf['links']
         else:
             links = gm_sources['links']
 
@@ -132,7 +138,7 @@ def check_stream(stream_list, shuffle_list=False, start_from=0, show_pd=False, c
             return resolved
         elif show_pd and pd.iscanceled():
             return
-        elif c == len(stream_list[start_from:]) and not resolved:
+        elif c == len(stream_list[start_from:]) - 1 and not resolved:
             kodi.infoDialog(kodi.i18n(30411))
             if show_pd:
                 pd.close()
@@ -145,7 +151,7 @@ def check_stream(stream_list, shuffle_list=False, start_from=0, show_pd=False, c
                 if show_pd:
                     _percent = percent(c, len(stream_list[start_from:]))
                     pd.update(_percent, ''.join([kodi.i18n(30459), h.partition(': ')[2]]))
-                kodi.sleep(1000)
+                kodi.sleep(100)
                 continue
 
 
@@ -179,9 +185,11 @@ def gf_directory(title):
 
     items = []
 
+    sep = separator()
+
     for h, l in sources['links']:
 
-        label = title + SEPARATOR + h
+        label = title + sep + h
 
         data = {
             'label': label, 'title': sources['title'], 'url': l, 'image': sources['image'],
@@ -206,10 +214,7 @@ def gm_directory(url, params):
     try:
         description = sources['plot']
     except KeyError:
-        try:
-            description = params.get('plot').encode('latin-1')
-        except (UnicodeEncodeError, UnicodeDecodeError, AttributeError):
-            description = params.get('plot')
+        description = params.get('plot')
         if not description:
             description = kodi.i18n(30085)
 
@@ -218,9 +223,13 @@ def gm_directory(url, params):
     except KeyError:
         genre = kodi.i18n(30089)
 
-    for h, l in links:
+    sep = separator()
 
-        html = Net().http_GET(l).content
+    with ThreadPoolExecutor(max_workers=min(6, len(links)) or 1) as ex:
+        htmls = list(ex.map(lambda hl: Net().http_GET(hl[1]).content, links))
+
+    for (h, l), html in zip(links, htmls):
+
         button = iwrapper(html, 'a', attrs={'role': 'button'}, ret='href').__next__()
         image = iwrapper(html, 'img', attrs={'class': 'thumbnail img-responsive'}, ret='src').__next__()
         image = urljoin(GM_BASE, image)
@@ -241,10 +250,10 @@ def gm_directory(url, params):
             if episode[-4:].isdigit():
                 raise IndexError
             episode = episode.partition(': ')[2].strip()
-            label = title + ' - ' + episode + SEPARATOR + h
+            label = title + ' - ' + episode + sep + h
             title = title + ' - ' + episode
         except IndexError:
-            label = title + SEPARATOR + h
+            label = title + sep + h
         # plot = title + '[CR]' + kodi.i18n(30090) + ': ' + year + '[CR]' + description
 
         data = {
@@ -260,18 +269,36 @@ def gm_directory(url, params):
 def directory_picker(url, argv):
 
     params = dict(parse_qsl(argv[2][1:]))
+
+    gf_merged = False
+
     if GF_BASE in url:
         items = gf_directory(params.get('title'))
     else:
-        sources = gm_source_maker(url)
-
         try:
             items = gm_directory(url, params) + gf_directory(params.get('title'))
+            gf_merged = True
         except TypeError:
             items = gm_directory(url, params)
 
     if items is None:
         return
+
+    query = None
+
+    if Addon().getSetting('check_streams') == 'true':
+
+        if GF_BASE in url:
+            gf_sources = gf_source_maker(GFM_GETTER, title=params.get('title')) or gf_source_maker(GFK_GETTER, title=params.get('title'))
+            links = gf_sources['links'] if gf_sources else []
+        else:
+            links = gm_source_maker(url)['links']
+            if gf_merged:
+                gf_sources = gf_source_maker(GFM_GETTER, title=params.get('title')) or gf_source_maker(GFK_GETTER, title=params.get('title'))
+                if gf_sources:
+                    links = links + gf_sources['links']
+
+        query = json.dumps(links)
 
     for i in items:
 
@@ -279,8 +306,8 @@ def directory_picker(url, argv):
         clear_playlist = {'title': 30227, 'query': {'action': 'clear_playlist'}}
         i.update({'cm': [add_to_playlist, clear_playlist], 'action': 'play', 'isFolder': 'False', 'isPlayable': 'True'})
 
-        if Addon().getSetting('check_streams') == 'true':
-            i.update({'query': json.dumps(sources['links'])})
+        if query:
+            i.update({'query': query})
 
     directory.builder(
         items, content='movies', argv=argv
@@ -329,7 +356,7 @@ def player(url, params):
     directory_boolean = any(
         [
             GF_BASE in url, GM_MOVIES in url, GM_SHORTFILMS in url, GM_THEATER in url,
-            ('episode' in url and GM_BASE in url), GF_BASE in url
+            ('episode' in url and GM_BASE in url)
         ]
     )
 
@@ -358,25 +385,12 @@ def player(url, params):
         params.update({'isFolder': 'False'})
         add_to_file(PLAYBACK_HISTORY, json.dumps(params))
 
-    try:
-        plot = params.get('plot').encode('latin-1')
-    except (UnicodeEncodeError, UnicodeDecodeError, AttributeError):
-        plot = params.get('plot')
+    plot = params.get('plot')
 
     if not plot and 'greek-movies.com' in url:
         plot = gm_source_maker(url).get('plot')
 
     dash, m3u8_dash, mimetype, manifest_type = dash_conditionals(stream)
-
-    # if not m3u8_dash and kodi.setting('m3u8_quality_picker') == '1' and '.m3u8' in stream:
-    #
-    #     try:
-    #
-    #         stream = m3u8_picker(stream)
-    #
-    #     except TypeError:
-    #
-    #         pass
 
     if stream != url:
 
@@ -405,17 +419,9 @@ def player(url, params):
 
         stream = sep.join([stream, urlencode(headers)])
 
-    try:
-
-        image = params.get('image').encode('latin-1')
-        name = params.get('name').encode('latin-1')
-        title = params.get('title').encode('latin-1')
-
-    except (UnicodeEncodeError, UnicodeDecodeError, AttributeError):
-
-        image = params.get('image')
-        name = params.get('name')
-        title = params.get('title')
+    image = params.get('image')
+    name = params.get('name')
+    title = params.get('title')
 
     if name:
         meta = {'title': name}

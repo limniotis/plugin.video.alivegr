@@ -8,10 +8,8 @@
 from sys import argv
 from urllib.parse import parse_qsl
 
-from resources.lib.modules import utils, helpers, player
-from resources.lib.indexers import (
-    navigator, settings, live, vod, kids, music, bookmarks, search
-)
+from resources.lib.modules import utils, helpers
+from resources.lib.indexers import navigator
 from resources.lib.modules.constants import SEARCH_HISTORY, PLAYBACK_HISTORY
 
 from tulip.directory import run_builtin
@@ -21,8 +19,6 @@ params = dict(parse_qsl(argv[2][1:]))
 content = params.get('content_type')
 action = params.get('action')
 url = params.get('url')
-image = params.get('image')
-title = params.get('title')
 name = params.get('name')
 query = params.get('query')
 
@@ -35,11 +31,12 @@ def route():
 
     elif content == 'audio':
 
-        # music.Indexer().menu()
+        from resources.lib.indexers import music
         music.Indexer().gm_music()
 
     elif content == 'executable':
 
+        from resources.lib.indexers import settings
         settings.Indexer().menu()
 
     elif action is None:
@@ -56,94 +53,107 @@ def route():
 
     elif action == 'live_tv':
 
+        from resources.lib.indexers import live
         live.Indexer().live_tv()
 
     elif action == 'live_m3u':
 
+        from resources.lib.indexers import live
         live.Indexer().live_m3u()
 
     elif action == 'movies':
 
+        from resources.lib.indexers import vod
         vod.Indexer().movies()
 
     elif action == 'short_films':
 
+        from resources.lib.indexers import vod
         vod.Indexer().short_films()
 
     elif action == 'shows':
 
+        from resources.lib.indexers import vod
         vod.Indexer().shows()
 
     elif action == 'series':
 
+        from resources.lib.indexers import vod
         vod.Indexer().series()
 
     elif action == 'kids':
 
+        from resources.lib.indexers import kids
         kids.Indexer().kids()
 
     elif action == 'kids_live':
 
+        from resources.lib.indexers import live
         live.Indexer().modular('30032')
 
     elif action == 'cartoon_series':
 
+        from resources.lib.indexers import vod
         vod.Indexer().cartoons_series()
 
     elif action == 'listing':
 
+        from resources.lib.indexers import vod
         vod.Indexer().listing(url)
 
     elif action == 'episodes':
 
+        from resources.lib.indexers import vod
         vod.Indexer().episodes(url)
 
     elif action == 'gm_sports':
 
+        from resources.lib.indexers import vod
         vod.Indexer().gm_sports()
 
     elif action == 'events':
 
+        from resources.lib.indexers import vod
         vod.Indexer().events(url)
 
     elif action == 'theater':
 
+        from resources.lib.indexers import vod
         vod.Indexer().theater()
 
     elif action == 'music':
 
+        from resources.lib.indexers import music
         music.Indexer().menu()
 
     elif action == 'music_live':
 
+        from resources.lib.indexers import live
         live.Indexer().modular('30125')
 
     elif action == 'gm_music':
 
+        from resources.lib.indexers import music
         music.Indexer().gm_music()
 
     elif action == 'artist_index':
 
+        from resources.lib.indexers import music
         music.Indexer().artist_index(url)
 
     elif action == 'album_index':
 
+        from resources.lib.indexers import music
         music.Indexer().album_index(url)
 
     elif action == 'songs_index':
 
+        from resources.lib.indexers import music
         music.Indexer().songs_index(url, name)
-
-    # elif action == 'mgreekz_index':
-    #
-    #     music.Indexer().mgreekz_index()
-    #
-    # elif action == 'top50_list':
-    #
-    #     music.Indexer().top50_list(url)
 
     elif action == 'techno_choices':
 
+        from resources.lib.indexers import music
         music.Indexer().techno_choices(url)
 
     elif action == 'addBookmark':
@@ -164,6 +174,7 @@ def route():
 
     elif action == 'bookmarks':
 
+        from resources.lib.indexers import bookmarks
         bookmarks.Indexer().bookmarks()
 
     elif action == 'clear_bookmarks':
@@ -177,6 +188,7 @@ def route():
 
     elif action in ['search', 'add_to_search_history']:
 
+        from resources.lib.indexers import search
         search.Indexer().search(action, query)
 
     elif action == 'delete_from_history':
@@ -194,18 +206,12 @@ def route():
 
     elif action == 'search_index':
 
+        from resources.lib.indexers import search
         search.Indexer().search_index()
-
-    elif action == 'search_index':
-
-        search.Indexer().search_index()
-
-    elif action == 'playback_history':
-
-        navigator.Indexer().playback_history()
 
     elif action == 'settings':
 
+        from resources.lib.indexers import settings
         settings.Indexer().menu()
 
     elif action == 'tools_menu':
@@ -222,18 +228,22 @@ def route():
 
     elif action == 'play':
 
+        from resources.lib.modules import player
         player.player(url, params)
 
     elif action == 'directory':
 
+        from resources.lib.modules import player
         player.directory_picker(url, argv=argv)
 
     elif action == 'live_switcher':
 
+        from resources.lib.indexers import live
         live.Indexer().switcher()
 
     elif action == 'vod_switcher':
 
+        from resources.lib.indexers import vod
         vod.Indexer().vod_switcher(url)
 
     elif action == 'page_selector':
@@ -308,20 +318,19 @@ def route():
 
         utils.changelog()
 
-    elif action == 'developer_mode':
-
-        utils.dev()
-
     elif action == 'info':
 
+        from resources.lib.indexers import settings
         settings.Indexer().info()
 
     elif action == 'actions':
 
+        from resources.lib.indexers import settings
         settings.Indexer().actions()
 
     elif action == 'input_stream_addons':
 
+        from resources.lib.indexers import settings
         settings.Indexer().input_stream_addons()
 
     elif action == 'call_info':

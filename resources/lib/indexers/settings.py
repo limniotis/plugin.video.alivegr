@@ -158,10 +158,7 @@ class Indexer:
 
         separator = '[CR]' if Addon().getSetting('wrap_labels') == '0' else ' '
 
-        try:
-            disclaimer = kodi.addonInfo('disclaimer').decode('utf-8')
-        except (UnicodeEncodeError, UnicodeDecodeError, AttributeError):
-            disclaimer = kodi.addonInfo('disclaimer')
+        disclaimer = kodi.addonInfo('disclaimer')
 
         self.list = [
             {

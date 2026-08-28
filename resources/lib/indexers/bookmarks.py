@@ -33,15 +33,18 @@ class Indexer:
 
         else:
 
+            addon = Addon()
+            action_type = addon.getSetting('action_type')
+
             for i in self.data:
 
                 item = dict((k, v) for k, v in iteritems(i) if not k == 'next')
                 item['delbookmark'] = i['url']
 
                 if i['action'] == 'play':
-                    if Addon().getSetting('action_type') == '0':
+                    if action_type == '0':
                         i.update({'action': 'play', 'isFolder': 'False', 'isPlayable': 'True'})
-                    elif Addon().getSetting('action_type') == '1':
+                    elif action_type == '1':
                         del item['isFolder']
                         del item['isPlayable']
 
@@ -49,7 +52,7 @@ class Indexer:
 
             self.list = sorted(self.data, key=lambda k: strip_accents(k['title'].lower()))
 
-            if Addon().getSetting('show_clear_bookmarks') == 'true':
+            if addon.getSetting('show_clear_bookmarks') == 'true':
 
                 clear_all = {
                     'title': 30274,

@@ -2,12 +2,10 @@ import json
 import re
 import binascii
 from urllib.parse import urljoin, urlparse, parse_qsl
-from fuzzywuzzy import fuzz
 from tulip import kodi, cleantitle
 from netclient import Net
 from useragents import spoofer
 from itertags import iwrapper
-from scrapetube.wrapper import list_search
 from ..modules.constants import (
     cache_function, cache_duration, GM_BASE
 )
@@ -79,6 +77,8 @@ def gm_source_maker(url):
         return {'links': [(''.join([kodi.i18n(30015), host]), link)], 'title': title}
 
     elif 'music' in url:
+
+        from scrapetube.wrapper import list_search
 
         title = re.search(r'''search\(['"](.+?)['"]\)''', html).group(1)
 
@@ -173,6 +173,8 @@ def gm_source_maker(url):
 @cache_function(cache_duration(360))
 def gf_source_maker(var, url=None, title=None, search=None):
 
+    from fuzzywuzzy import fuzz
+
     data = None
     gf_movies_list = gist_getter(var)
 
@@ -195,10 +197,17 @@ def gf_source_maker(var, url=None, title=None, search=None):
 
         try:
 
+            needle = title.lower()
+
             for i in gf_movies_list:
-                score = fuzz.ratio(i['title'].lower(), title.lower())
+                t = i['title'].lower()
+                if t == needle:
+                    log(f"Match found! Exact title match for '{i['title']}' vs '{title}'")
+                    item = i
+                    break
+                score = fuzz.ratio(t, needle)
                 if score <= 70:
-                    score = fuzz.ratio(i['label'].lower(), title.lower())
+                    score = fuzz.ratio(i['label'].lower(), needle)
                 if score >= 71:
                     log(f"Match found! Score for '{i['title']}' vs '{title}': {score}")
                     item = i
@@ -227,17 +236,13 @@ def gf_source_maker(var, url=None, title=None, search=None):
 
         try:
 
-            # items = [
-            #     dict(
-            #         i, image=spoofer(i.get('image') or 'https://openclipart.org/image/800px/144715')
-            #     ) for i in gf_movies_list if fuzz.ratio(i['title'], search) >= 50
-            # ]
+            needle = search.lower()
 
             items = []
             for i in gf_movies_list:
-                score = fuzz.ratio(i['title'].lower(), search.lower())
+                score = fuzz.ratio(i['title'].lower(), needle)
                 if score <= 50:
-                    score = fuzz.ratio(i['label'].lower(), search.lower())
+                    score = fuzz.ratio(i['label'].lower(), needle)
                 if score >= 51:
                     log(f"Match found! Score for '{i['title']}' vs '{search}': {score}")
                     items.append(
