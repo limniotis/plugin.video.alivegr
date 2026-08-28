@@ -54,7 +54,6 @@ def reset_idx(notify=True, forceit=False):
             kodi.setSetting('live_group', '0')
 
         kodi.setSetting('vod_group', '30213')
-        kodi.setSetting('papers_group', '0')
 
         if notify:
             kodi.infoDialog(message=kodi.i18n(30402), time=3000)
