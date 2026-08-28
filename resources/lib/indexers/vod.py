@@ -12,7 +12,7 @@ from xbmcaddon import Addon
 from urllib.parse import urljoin, urlparse, parse_qsl
 
 from tulip import directory, kodi, cleantitle
-from tulip.utils import list_divider, iteritems
+from tulip.utils import list_divider
 from netclient import Net
 from useragents import spoofer
 from itertags import iwrapper
@@ -26,9 +26,22 @@ from ..modules.utils import page_menu, lists_merger
 from ..modules.source_makers import gist_getter
 
 
+DEFAULT_IMG = 'https://openclipart.org/image/800px/144715'
+
+
 def get_genres(item):
     genres = item.get('genre') or 'άλλο'
     return genres if isinstance(genres, list) else [genres]
+
+
+def spoof_images(items):
+    return [dict(item, image=spoofer(item.get('image') or DEFAULT_IMG)) for item in items]
+
+
+def bookmark_cm(item):
+    bookmark = {k: v for k, v in item.items() if k != 'next'}
+    bookmark['bookmark'] = item['url']
+    return {'title': 30080, 'query': {'action': 'addBookmark', 'url': json.dumps(bookmark)}}
 
 @cache_function(cache_duration(720))
 def filtration(url):
@@ -43,28 +56,21 @@ def filtration(url):
     if l_index in VOD_FILTER_MAP:
 
         allowed_starts = VOD_FILTER_MAP[l_index]
-        return [
-            dict(item, image=spoofer(item.get('image') or 'https://openclipart.org/image/800px/144715')) for item in gf_movies_list
-            if item['label'].upper()[0] in allowed_starts
-        ]
+        return spoof_images(item for item in gf_movies_list if item['label'].upper()[0] in allowed_starts)
 
     elif y_index in VOD_YEAR_FILTER_MAP:
 
         allowed_years = VOD_YEAR_FILTER_MAP[y_index]
-        return [
-            dict(item, image=spoofer(item.get('image') or 'https://openclipart.org/image/800px/144715')) for item in gf_movies_list
-            if item.get('year') in allowed_years
-        ]
+        return spoof_images(item for item in gf_movies_list if item.get('year') in allowed_years)
 
     elif g_index in VOD_GENRE_FILTER_MAP:
 
         allowed_genres = [genre.lower() for genre in VOD_GENRE_FILTER_MAP[g_index]]
         genres_lower = {k.lower(): v for k, v in GENRES.items()}
 
-        gf_movies_list = [
-            dict(item, image=spoofer(item.get('image') or 'https://openclipart.org/image/800px/144715')) for item in gf_movies_list
-            if any(g.lower() in allowed_genres for g in get_genres(item))
-        ]
+        gf_movies_list = spoof_images(
+            item for item in gf_movies_list if any(g.lower() in allowed_genres for g in get_genres(item))
+        )
 
         for item in gf_movies_list:
             item['genre'] = [genres_lower.get(g.lower(), g) for g in get_genres(item)] if 'genre' in item else [kodi.i18n(30089)]
@@ -98,20 +104,13 @@ def gm_root(url):
         items = re.findall('(<option  ?value=.*?</option>)', result, re.U)
         groups = iwrapper(result, 'option', attrs={'selected': None})
 
+        groups_map = {
+            u'ΑΡΧΙΚΑ': '30213', u'ΕΤΟΣ': '30090', u'ΚΑΝΑΛΙ': '30211', u'ΕΙΔΟΣ': '30200', u'ΠΑΡΑΓΩΓΗ': '30212'
+        }
+
         for group_match in groups:
 
-            group = group_match.text
-            if group == u'ΑΡΧΙΚΑ':
-                group = group.replace(u'ΑΡΧΙΚΑ', '30213')
-            elif group == u'ΕΤΟΣ':
-                group = group.replace(u'ΕΤΟΣ', '30090')
-            elif group == u'ΚΑΝΑΛΙ':
-                group = group.replace(u'ΚΑΝΑΛΙ', '30211')
-            elif group == u'ΕΙΔΟΣ':
-                group = group.replace(u'ΕΙΔΟΣ', '30200')
-            elif group == u'ΠΑΡΑΓΩΓΗ':
-                group = group.replace(u'ΠΑΡΑΓΩΓΗ', '30212')
-            groups_list.append(group)
+            groups_list.append(groups_map.get(group_match.text, group_match.text))
 
         for item in items:
 
@@ -131,18 +130,7 @@ def gm_root(url):
 
             title = name[0].capitalize() + name[1:]
 
-            if indexer.startswith('l='):
-                group = '30213'
-            elif indexer.startswith('y='):
-                group = '30090'
-            elif indexer.startswith('c='):
-                group = '30211'
-            elif indexer.startswith('g='):
-                group = '30200'
-            elif indexer.startswith('p='):
-                group = '30212'
-            else:
-                group = ''
+            group = {'l=': '30213', 'y=': '30090', 'c=': '30211', 'g=': '30200', 'p=': '30212'}.get(indexer[:2], '')
 
             root_list.append({'title': title, 'group': group, 'url': index})
 
@@ -155,7 +143,6 @@ class Indexer:
 
         self.list = []
         self.data = []
-        self.years = []
 
         self.switch = {
             'title': kodi.i18n(30045).format(kodi.i18n(int(Addon().getSetting('vod_group')))),
@@ -176,16 +163,12 @@ class Indexer:
             Addon().setSetting('vod_group', self.data[choice])
             kodi.idle()
             kodi.sleep(100)  # ensure setting has been saved
-            # if str(self.data[choice]) != Addon().getSetting('vod_group'):
-            #     kodi.refresh()
-            # else:
-            #     kodi.execute('Dialog.Close(all)')
         else:
             kodi.execute('Dialog.Close(all)')
 
-    def movies(self):
+    def gm_index(self, url, icon):
 
-        self.data, _ = gm_root(GM_MOVIES)
+        self.data = gm_root(url)[0]
 
         vod_group = Addon().getSetting('vod_group')
         switcher_mode = Addon().getSetting('vod_switcher_mode')
@@ -198,204 +181,66 @@ class Indexer:
 
         for item in self.list:
 
-            item.update({'icon': iconname('movies'), 'action': 'listing', 'isFolder': 'True'})
+            item.update({'icon': iconname(icon), 'action': 'listing', 'isFolder': 'True'})
 
             if switcher_mode == '1':
-                self.group_changer.update({'url': GM_MOVIES})
+
+                self.group_changer.update({'url': url})
 
                 item.update({'cm': [{'title': 30034, 'query': self.group_changer}]})
 
         if switcher_mode == '0':
 
-            self.switch.update({'url': GM_MOVIES})
+            self.switch.update({'url': url})
 
             self.list.insert(0, self.switch)
 
         directory.builder(self.list)
+
+    def movies(self):
+        self.gm_index(GM_MOVIES, 'movies')
 
     def short_films(self):
-
-        self.data = gm_root(GM_SHORTFILMS)[0]
-
-        vod_group = Addon().getSetting('vod_group')
-        switcher_mode = Addon().getSetting('vod_switcher_mode')
-
-        try:
-            self.list = [item for item in self.data if item['group'] == vod_group]
-        except Exception:
-            kodi.setSetting('vod_group', '30213')
-            self.list = self.data
-
-        for item in self.list:
-            item.update({'icon': iconname('short'), 'action': 'listing', 'isFolder': 'True'})
-
-            if switcher_mode == '1':
-                self.group_changer.update({'url': GM_SHORTFILMS})
-
-                item.update({'cm': [{'title': 30034, 'query': self.group_changer}]})
-
-        if switcher_mode == '0':
-
-            self.switch.update({'url': GM_SHORTFILMS})
-            self.list.insert(0, self.switch)
-
-        directory.builder(self.list)
+        self.gm_index(GM_SHORTFILMS, 'short')
 
     def series(self):
-
-        self.data = gm_root(GM_SERIES)[0]
-
-        vod_group = Addon().getSetting('vod_group')
-        switcher_mode = Addon().getSetting('vod_switcher_mode')
-
-        try:
-            self.list = [item for item in self.data if item['group'] == vod_group]
-        except Exception:
-            kodi.setSetting('vod_group', '30213')
-            self.list = self.data
-
-        for item in self.list:
-            item.update({'icon': iconname('series'), 'action': 'listing', 'isFolder': 'True'})
-
-            if switcher_mode == '1':
-                self.group_changer.update({'url': GM_SERIES})
-
-                item.update({'cm': [{'title': 30034, 'query': self.group_changer}]})
-
-        if switcher_mode == '0':
-            self.switch.update({'url': GM_SERIES})
-
-            self.list.insert(0, self.switch)
-
-        directory.builder(self.list)
+        self.gm_index(GM_SERIES, 'series')
 
     def shows(self):
-
-        self.data = gm_root(GM_SHOWS)[0]
-
-        vod_group = Addon().getSetting('vod_group')
-        switcher_mode = Addon().getSetting('vod_switcher_mode')
-
-        try:
-            self.list = [item for item in self.data if item['group'] == vod_group]
-        except Exception:
-            kodi.setSetting('vod_group', '30213')
-            self.list = self.data
-
-        for item in self.list:
-            item.update({'icon': iconname('shows'), 'action': 'listing', 'isFolder': 'True'})
-
-            if switcher_mode == '1':
-                self.group_changer.update({'url': GM_SHOWS})
-
-                item.update({'cm': [{'title': 30034, 'query': self.group_changer}]})
-
-        if switcher_mode == '0':
-
-            self.switch.update({'url': GM_SHOWS})
-            self.list.insert(0, self.switch)
-
-        directory.builder(self.list)
+        self.gm_index(GM_SHOWS, 'shows')
 
     def cartoons_series(self):
-
-        self.data = gm_root(GM_ANIMATION)[0]
-
-        vod_group = Addon().getSetting('vod_group')
-        switcher_mode = Addon().getSetting('vod_switcher_mode')
-
-        try:
-            self.list = [item for item in self.data if item['group'] == vod_group]
-        except Exception:
-            kodi.setSetting('vod_group', '30213')
-            self.list = self.data
-
-        for item in self.list:
-            item.update({'icon': iconname('cartoon_series'), 'action': 'listing', 'isFolder': 'True'})
-
-            if switcher_mode == '1':
-                self.group_changer.update({'url': GM_ANIMATION})
-
-                item.update({'cm': [{'title': 30034, 'query': self.group_changer}]})
-
-        if switcher_mode == '0':
-            self.switch.update({'url': GM_ANIMATION})
-
-            self.list.insert(0, self.switch)
-
-        directory.builder(self.list)
+        self.gm_index(GM_ANIMATION, 'cartoon_series')
 
     def theater(self):
-
-        self.data = gm_root(GM_THEATER)[0]
-
-        vod_group = Addon().getSetting('vod_group')
-        switcher_mode = Addon().getSetting('vod_switcher_mode')
-
-        try:
-            self.list = [item for item in self.data if item['group'] == vod_group]
-        except Exception:
-            kodi.setSetting('vod_group', '30213')
-            self.list = self.data
-
-        for item in self.list:
-
-            item.update({'icon': iconname('theater'), 'action': 'listing', 'isFolder': 'True'})
-
-            if switcher_mode == '1':
-
-                self.group_changer.update({'url': GM_THEATER})
-
-                item.update({'cm': [{'title': 30034, 'query': self.group_changer}]})
-
-        if switcher_mode == '0':
-            self.switch.update({'url': GM_THEATER})
-
-            self.list.insert(0, self.switch)
-
-        directory.builder(self.list)
+        self.gm_index(GM_THEATER, 'theater')
 
     @cache_method(cache_duration(720))
     def gm_items_list(self, url, post=None):
 
         indexer = urlparse(url).query
 
-        ################################################################################################
-        #                                                                                              #
-        if 'movies.php' in url:                                                                        #
-            length = 10                                                                                #
-        elif 'shortfilm.php' in url:                                                                   #
-            length = 6                                                                                 #
-        elif 'theater.php' in url:                                                                     #
-            length = 8                                                                                 #                                                                                    #
-        else:                                                                                          #
-            length = 2                                                                                 #
-        #                                                                                              #
-        ################################################################################################
+        if 'movies.php' in url:
+            length = 10
+        elif 'shortfilm.php' in url:
+            length = 6
+        elif 'theater.php' in url:
+            length = 8
+        else:
+            length = 2
 
-        for year in range(1, length):
+        tail = {'l=': '&g=&p=', 'g=': '&l=&p=', 'p=': '&l=&g=', 'c=': '&l=&g='}.get(indexer[:2])
 
-            if indexer.startswith('l='):
-                p = 'y=' + str(year) + '&g=&p='
-            elif indexer.startswith('g='):
-                p = 'y=' + str(year) + '&l=&p='
-            elif indexer.startswith('p='):
-                p = 'y=' + str(year) + '&l=&g='
-            elif indexer.startswith('c='):
-                p = 'y=' + str(year) + '&l=&g='
-            else:
-                p = ''
-
-            self.years.append(p)
+        years = ['y={0}{1}'.format(year, tail) for year in range(1, length)] if tail else []
 
         if indexer.startswith(
                 ('l=', 'g=', 's=', 'p=', 'c=')
-        ) and ('movies.php' in url or 'shortfilm.php' in url or 'theater.php' in url) and any(self.years):
+        ) and ('movies.php' in url or 'shortfilm.php' in url or 'theater.php' in url) and years:
 
             base = GM_BASE + url.rpartition('/')[2].partition('&')[0]
 
-            with ThreadPoolExecutor(max_workers=len(self.years) or 1) as ex:
-                self.data = list(ex.map(lambda c: Net().http_GET(base + '&' + c).content, self.years))
+            with ThreadPoolExecutor(max_workers=len(years) or 1) as ex:
+                self.data = list(ex.map(lambda c: Net().http_GET(base + '&' + c).content, years))
 
             result = u''.join(self.data)
 
@@ -466,7 +311,7 @@ class Indexer:
             try:
                 item['image'] = item['image'].replace('http://', 'https://')
             except AttributeError:
-                item['image'] = 'https://openclipart.org/image/800px/144715'
+                item['image'] = DEFAULT_IMG
 
             item['url'] = item['url'].replace('http://', 'https://')
 
@@ -490,11 +335,8 @@ class Indexer:
 
         for item in self.list:
 
-            bookmark = dict((k, v) for k, v in iteritems(item) if not k == 'next')
-            bookmark['bookmark'] = item['url']
-            bookmark_cm = {'title': 30080, 'query': {'action': 'addBookmark', 'url': json.dumps(bookmark)}}
             refresh_cm = {'title': 30054, 'query': {'action': 'refresh'}}
-            item.update({'cm': [bookmark_cm, refresh_cm]})
+            item.update({'cm': [bookmark_cm(item), refresh_cm]})
 
         if get_listing:
 
@@ -679,8 +521,6 @@ class Indexer:
                     i.update({'cm': cm})
 
         kodi.setsortmethod()
-        # kodi.setsortmethod('title')
-        # kodi.setsortmethod('year')
 
         directory.builder(self.list, content='episodes', add_all_at_once=True)
 
@@ -743,10 +583,7 @@ class Indexer:
         self.list = self.event_list(url)
 
         for item in self.list:
-            bookmark = dict((k, v) for k, v in iteritems(item) if not k == 'next')
-            bookmark['bookmark'] = item['url']
-            bookmark_cm = {'title': 30080, 'query': {'action': 'addBookmark', 'url': json.dumps(bookmark)}}
-            item.update({'cm': [bookmark_cm], 'action': 'play', 'isFolder': 'False', 'isPlayable': 'True'})
+            item.update({'cm': [bookmark_cm(item)], 'action': 'play', 'isFolder': 'False', 'isPlayable': 'True'})
 
         directory.builder(self.list)
 
@@ -770,7 +607,7 @@ class Indexer:
 
         return self.list
 
-    def persons_index(self, url, post, get_list=True):
+    def persons_index(self, url, post):
 
         self.list = self.persons_listing(url, post)
 
@@ -781,13 +618,7 @@ class Indexer:
 
             item.update({'action': 'listing', 'isFolder': 'True', 'icon': iconname('user')})
 
-            bookmark = dict((k, v) for k, v in iteritems(item) if not k == 'next')
-            bookmark['bookmark'] = item['url']
-            bookmark_cm = {'title': 30080, 'query': {'action': 'addBookmark', 'url': json.dumps(bookmark)}}
             refresh_cm = {'title': 30054, 'query': {'action': 'refresh'}}
-            item.update({'cm': [bookmark_cm, refresh_cm]})
+            item.update({'cm': [bookmark_cm(item), refresh_cm]})
 
-        if get_list:
-            return self.list
-        else:
-            directory.builder(self.list)
+        return self.list

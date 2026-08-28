@@ -9,25 +9,10 @@ from tulip import kodi
 from .constants import ART_ID
 
 
-def theme():
-
-    from xbmcaddon import Addon
-    icon_theme = Addon().getSetting('theme')
-
-    if icon_theme == '0':
-        return 'alivegr', '+alivegr.png'
-    elif icon_theme == '1':
-        return 'twilight', '+twilight.png'
-    elif icon_theme == '2':
-        return 'gemini', '+gemini.png'
-
-
 def iconname(name):
 
-    base, plus = theme()
+    base = ('alivegr', 'twilight', 'gemini')[int(kodi.setting('theme'))]
 
-    icon = kodi.addonmedia(
-        addonid=ART_ID, theme=base, path=name + plus
+    return kodi.addonmedia(
+        addonid=ART_ID, theme=base, path='{0}+{1}.png'.format(name, base)
     )
-
-    return icon

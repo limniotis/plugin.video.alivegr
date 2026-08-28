@@ -36,7 +36,6 @@ __addon_id__ = 'plugin.video.alivegr'
 
 PROXY_PORT = int(xbmcaddon.Addon('plugin.video.alivegr').getSetting('proxy_port')) or 50199
 g_proxy_server = None
-g_proxy_thread = None
 g_stream_manager = None
 
 
@@ -87,13 +86,11 @@ class StreamManager:
 
     def _pinger(self):
 
-        while not self.stop_event.is_set():
-            if self.stop_event.wait(5.0):
-                break
+        while not self.stop_event.wait(5.0):
             try:
                 if self.ws and self.ws.connected:
                     self.ws.send(json.dumps({"type": "ping"}))
-            except Exception as e:
+            except Exception:
                 break
 
     def _ws_reader(self):
@@ -279,9 +276,9 @@ class ProxyRequestHandler(http.server.BaseHTTPRequestHandler):
 
         elif '?ws=' in self.path:
             try:
-                ws_b64 = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)['ws'][0]
-                ws_url = base64.urlsafe_b64decode(ws_b64).decode('utf-8')
-                origin = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)['origin'][0]
+                query = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                ws_url = base64.urlsafe_b64decode(query['ws'][0]).decode('utf-8')
+                origin = query['origin'][0]
 
                 if not g_stream_manager or g_stream_manager.ws_url != ws_url or g_stream_manager.stop_event.is_set():
                     if g_stream_manager:
@@ -364,15 +361,14 @@ class ThreadedHttpServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
 
 def start_server():
 
-    global g_proxy_server, g_proxy_thread
+    global g_proxy_server
 
     if not g_proxy_server:
 
         try:
 
             g_proxy_server = ThreadedHttpServer(('', PROXY_PORT), ProxyRequestHandler)
-            g_proxy_thread = threading.Thread(target=g_proxy_server.serve_forever, daemon=True)
-            g_proxy_thread.start()
+            threading.Thread(target=g_proxy_server.serve_forever, daemon=True).start()
 
             xbmc.log(f'AliveGR Proxy: Listening on {PROXY_PORT}', xbmc.LOGDEBUG)
 
@@ -461,16 +457,12 @@ class AliveGRService(xbmc.Monitor):
 
     def launch_logic(self):
 
-        retries = 0
+        for _ in range(60):
 
-        while not xbmc.getCondVisibility('Window.IsActive(home)') and not self.abortRequested():
-
-            if retries > 60:
-                xbmc.log('AliveGR launched: Retry #' + str(retries), xbmc.LOGDEBUG)
+            if xbmc.getCondVisibility('Window.IsActive(home)') or self.abortRequested():
                 break
             if self.waitForAbort(0.2):
                 return
-            retries += 1
 
         if not self.abortRequested():
             xbmc.executebuiltin(f'RunAddon({__addon_id__})')

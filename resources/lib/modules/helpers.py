@@ -32,11 +32,11 @@ def lang_choice():
         kodi.execute('Dialog.Close(all)')
 
 
-def isa_enable():
+def inputstream_enable(addon_id, installed_msg, prompt_msg, fail_msg):
 
     try:
 
-        enabled = kodi.addon_details('inputstream.adaptive').get('enabled')
+        enabled = kodi.addon_details(addon_id).get('enabled')
 
     except Exception:
 
@@ -46,28 +46,28 @@ def isa_enable():
 
         if enabled:
 
-            kodi.infoDialog(kodi.i18n(30254))
+            kodi.infoDialog(kodi.i18n(installed_msg))
             return
 
         else:
 
-            xbmc_path = kodi.join('special://xbmc', 'addons', 'inputstream.adaptive')
-            home_path = kodi.join('special://home', 'addons', 'inputstream.adaptive')
+            xbmc_path = kodi.join('special://xbmc', 'addons', addon_id)
+            home_path = kodi.join('special://home', 'addons', addon_id)
 
             if path.exists(kodi.transPath(xbmc_path)) or path.exists(kodi.transPath(home_path)):
 
-                yes = kodi.yesnoDialog(kodi.i18n(30252))
+                yes = kodi.yesnoDialog(kodi.i18n(prompt_msg))
 
                 if yes:
 
-                    kodi.enable_addon('inputstream.adaptive')
+                    kodi.enable_addon(addon_id)
                     kodi.infoDialog(kodi.i18n(30402))
 
             else:
 
                 try:
 
-                    kodi.execute('InstallAddon(inputstream.adaptive)')
+                    kodi.execute('InstallAddon({0})'.format(addon_id))
 
                 except Exception:
 
@@ -75,53 +75,17 @@ def isa_enable():
 
     except Exception:
 
-        kodi.infoDialog(kodi.i18n(30278))
+        kodi.infoDialog(kodi.i18n(fail_msg))
+
+
+def isa_enable():
+
+    inputstream_enable('inputstream.adaptive', 30254, 30252, 30278)
 
 
 def rtmp_enable():
 
-    try:
-
-        enabled = kodi.addon_details('inputstream.rtmp').get('enabled')
-
-    except Exception:
-
-        enabled = False
-
-    try:
-
-        if enabled:
-
-            kodi.infoDialog(kodi.i18n(30276))
-            return
-
-        else:
-
-            xbmc_path = kodi.join('special://xbmc', 'addons', 'inputstream.rtmp')
-            home_path = kodi.join('special://home', 'addons', 'inputstream.rtmp')
-
-            if path.exists(kodi.transPath(xbmc_path)) or path.exists(kodi.transPath(home_path)):
-
-                yes = kodi.yesnoDialog(kodi.i18n(30277))
-
-                if yes:
-
-                    kodi.enable_addon('inputstream.rtmp')
-                    kodi.infoDialog(kodi.i18n(30402))
-
-            else:
-
-                try:
-
-                    kodi.execute('InstallAddon(inputstream.rtmp)')
-
-                except Exception:
-
-                    kodi.okDialog(heading='AliveGR', line1=kodi.i18n(30323))
-
-    except Exception:
-
-        kodi.infoDialog(kodi.i18n(30279))
+    inputstream_enable('inputstream.rtmp', 30276, 30277, 30279)
 
 
 def log_upload():
@@ -138,12 +102,8 @@ def log_upload():
 
         while not path.exists(addon_path):
             kodi.sleep(1000)
-        else:
-            kodi.execute('RunScript(script.kodi.loguploader)')
 
-    else:
-
-        kodi.execute('RunScript(script.kodi.loguploader)')
+    kodi.execute('RunScript(script.kodi.loguploader)')
 
 
 def other_addon_settings(query):

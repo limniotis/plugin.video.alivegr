@@ -9,7 +9,6 @@ from tulip import kodi, directory
 from ..modules.themes import iconname
 from .vod import GM_BASE
 from ..modules.utils import thgiliwt
-from tulip.utils import py3_dec
 from ..modules.constants import GFK_GETTER
 
 
@@ -28,25 +27,21 @@ class Indexer:
                 'action': 'kids_live',
                 'icon': iconname('kids_live'),
                 'isFolder': 'True'
-            }
-            ,
+            },
             {
                 'title': kodi.i18n(30073),
                 'action': 'listing',
-                # 'url': ''.join([GM_BASE, 'movies.php?g=8&y=&l=&p=']),
-                'url': py3_dec(thgiliwt(GFK_GETTER)),
+                'url': thgiliwt(GFK_GETTER).decode(),
                 'icon': iconname('cartoon_movies'),
                 'isFolder': 'True'
-            }
-            ,
+            },
             {
                 'title': kodi.i18n(30092),
                 'action': 'listing',
-                'url': ''.join([GM_BASE, 'shortfilm.php?g=8&y=&l=&p=']),
+                'url': GM_BASE + 'shortfilm.php?g=8&y=&l=&p=',
                 'icon': iconname('cartoon_short'),
                 'isFolder': 'True'
-            }
-            ,
+            },
             {
                 'title': kodi.i18n(30072),
                 'action': 'cartoon_series',

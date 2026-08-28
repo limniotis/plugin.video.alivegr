@@ -6,12 +6,10 @@
 # See LICENSES/GPL-3.0-only for more information.
 
 import json, re
-from collections import deque
 from xbmcaddon import Addon
 from tulip import kodi, directory
 from itertags import iwrapper
 from netclient import Net
-from tulip.utils import iteritems
 from urllib.parse import urljoin
 from ..modules.themes import iconname
 from ..modules.source_makers import gm_source_maker
@@ -25,7 +23,7 @@ class Indexer:
 
     def __init__(self):
 
-        self.list = []; self.data = []
+        self.list = []
         if Addon().getSetting('audio_only') == 'true' and kodi.condVisibility('Window.IsVisible(music)'):
             self.content = 'songs'
             self.infotype = 'music'
@@ -66,7 +64,7 @@ class Indexer:
 
         for option in options:
 
-            obj = iwrapper(option, 'option').__next__()
+            obj = next(iwrapper(option, 'option'))
             title = obj.text
             link = urljoin(vod.GM_BASE, obj.attributes['value'])
 
@@ -84,34 +82,30 @@ class Indexer:
 
         html = Net().http_GET(url).content
 
-        try:
-
+        if isinstance(html, bytes):
             html = html.decode('utf-8')
 
-        except Exception:
-
-            pass
-
         if 'albumlist' in html:
-            artist = [iwrapper(html, 'h4').__next__().text.partition(' <a')[0]]
+            artist = [next(iwrapper(html, 'h4')).text.partition(' <a')[0]]
         else:
             artist = None
 
-        if Addon().getSetting('audio_only') == 'true' and kodi.condVisibility('Window.IsVisible(music)') and artist is not None:
+        if self.infotype == 'music' and artist is not None:
+            # Kodi wants artist as a list for musicvideos, a plain string for music
             artist = ''.join(artist)
 
         if 'songlist' in html:
-            songlist = iwrapper(html, 'div', attrs={'class': 'songlist'}).__next__().text
+            songlist = next(iwrapper(html, 'div', attrs={'class': 'songlist'})).text
             items = iwrapper(songlist, 'li')
         elif 'albumlist' in html:
-            albumlist = iwrapper(html, 'div', attrs={'class': 'albumlist'}).__next__().text
+            albumlist = next(iwrapper(html, 'div', attrs={'class': 'albumlist'})).text
             items = iwrapper(albumlist, 'li')
         else:
-            artistlist = iwrapper(html, 'div', attrs={'class': 'artistlist'}).__next__().text
+            artistlist = next(iwrapper(html, 'div', attrs={'class': 'artistlist'})).text
             items = iwrapper(artistlist, 'li')
 
         if 'icon/music' in html:
-            icon = deque(iwrapper(html, 'img', attrs={'class': 'img-responsive'}, ret='src'), maxlen=1).pop()
+            icon = list(iwrapper(html, 'img', attrs={'class': 'img-responsive'}, ret='src'))[-1]
             icon = urljoin(vod.GM_BASE, icon)
         else:
             icon = iconname('music')
@@ -120,8 +114,8 @@ class Indexer:
 
         for item in items:
 
-            title = iwrapper(item.text, 'a').__next__().text
-            link = iwrapper(item.text, 'a', ret='href').__next__()
+            title = next(iwrapper(item.text, 'a')).text
+            link = next(iwrapper(item.text, 'a', ret='href'))
             link = urljoin(vod.GM_BASE, link)
 
             if 'gapi.client.setApiKey' in html:
@@ -139,21 +133,18 @@ class Indexer:
 
         return self.list
 
-    def artist_index(self, url, get_list=False):
+    def artist_index(self, url):
 
         self.list = self.music_list(url)
 
         for item in self.list:
             item.update({'action': 'album_index', 'isFolder': 'True'})
-            bookmark = dict((k, v) for k, v in iteritems(item) if not k == 'next')
+            bookmark = {k: v for k, v in item.items() if k != 'next'}
             bookmark['bookmark'] = item['url']
             bookmark_cm = {'title': 30080, 'query': {'action': 'addBookmark', 'url': json.dumps(bookmark)}}
             item.update({'cm': [bookmark_cm]})
 
-        if get_list:
-            return self.list
-        else:
-            directory.builder(self.list)
+        directory.builder(self.list)
 
     def album_index(self, url):
 
@@ -181,7 +172,7 @@ class Indexer:
 
         self.list = self.music_list(url)
 
-        for count, item in list(enumerate(self.list, start=1)):
+        for count, item in enumerate(self.list, start=1):
 
             item.update({'action': 'play', 'isFolder': 'False', 'isPlayable': 'True'})
             add_to_playlist = {'title': 30226, 'query': {'action': 'add_to_playlist'}}

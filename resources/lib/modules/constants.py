@@ -6,8 +6,6 @@
 # See LICENSES/GPL-3.0-only for more information.
 
 from xbmcaddon import Addon
-from collections import OrderedDict
-from urllib.parse import urljoin
 from datetime import datetime
 from tulip.kodi import dataPath, join, cacheDirectory, i18n
 from pickled import FunctionCache
@@ -32,7 +30,6 @@ ALIVEGR = (
 WEBSITE = 'https://github.com/Twilight0/plugin.video.alivegr'
 TWITTER = 'https://x.com/TwilightZer0'
 PAYPAL = 'https://www.paypal.me/AliveGR'
-PATREON = 'https://www.patreon.com/twilight0'
 FORUM = 'https://github.com/Twilight0/plugin.video.alivegr/discussions'
 
 ########################################################################################################################
@@ -47,17 +44,17 @@ ELAREPO_M3U = 'https://repo.elarepo.org/live/greek.m3u'
 ########################################################################################################################
 
 GM_BASE = 'https://greek-movies.com/'
-GM_MOVIES = urljoin(GM_BASE, 'movies.php')
-GM_SHOWS = urljoin(GM_BASE, 'shows.php')
-GM_SERIES = urljoin(GM_BASE, 'series.php')
-GM_ANIMATION = urljoin(GM_BASE, 'animation.php')
-GM_THEATER = urljoin(GM_BASE, 'theater.php')
-GM_SPORTS = urljoin(GM_BASE, 'sports.php')
-GM_SHORTFILMS = urljoin(GM_BASE, 'shortfilm.php')
-GM_MUSIC = urljoin(GM_BASE, 'music.php')
-GM_SEARCH = urljoin(GM_BASE, 'search.php')
-GM_PERSON = urljoin(GM_BASE, 'person.php')
-GM_EPISODE = urljoin(GM_BASE, 'ajax.php?type=episode&epid={0}&view={1}')
+GM_MOVIES = GM_BASE + 'movies.php'
+GM_SHOWS = GM_BASE + 'shows.php'
+GM_SERIES = GM_BASE + 'series.php'
+GM_ANIMATION = GM_BASE + 'animation.php'
+GM_THEATER = GM_BASE + 'theater.php'
+GM_SPORTS = GM_BASE + 'sports.php'
+GM_SHORTFILMS = GM_BASE + 'shortfilm.php'
+GM_MUSIC = GM_BASE + 'music.php'
+GM_SEARCH = GM_BASE + 'search.php'
+GM_PERSON = GM_BASE + 'person.php'
+GM_EPISODE = GM_BASE + 'ajax.php?type=episode&epid={0}&view={1}'
 
 ########################################################################################################################
 
@@ -67,11 +64,6 @@ GFM_GETTER = (
         'l2dU9SbvNmL05WZ052bjJXZzVnY1hGdpdmL0NXan9yL6MHc0RHa'
     )
 
-GFS_GETTER = (
-        'u92cq5ycllmclN3Xmd2L3FmcvcjYwMDZxgTO3MWYilTNxETZ0UzY1ITZ4EWO1EWN0cDNvADdodWasl2d'
-        'U9SbvNmL05WZ052bjJXZzVnY1hGdpdmL0NXan9yL6MHc0RHa'
-    )
-
 GFK_GETTER = (
     '==gbvNnauMHZpt2Xmd2L3FmcvAzYhlDM3EGOhVmZ3IjNkV2Y3MGZhZTMmhjZkJ2NmJjMvADdodWasl2dU9S'
     'bvNmL05WZ052bjJXZzVnY1hGdpdmL0NXan9yL6MHc0RHa'
@@ -79,19 +71,15 @@ GFK_GETTER = (
 
 ########################################################################################################################
 
-LIVE_GROUPS = OrderedDict(
-    [
-        ('Panhellenic', 30201), ('Pancypriot', 30202), ('International', 30203), ('Regional', 30207),
-        ('Music', 30125), ('Cinema', 30205), ('Kids', 30032), ('Sports', 30094), ('Web TV', 30210)
-    ]
-)
+LIVE_GROUPS = {
+    'Panhellenic': 30201, 'Pancypriot': 30202, 'International': 30203, 'Regional': 30207,
+    'Music': 30125, 'Cinema': 30205, 'Kids': 30032, 'Sports': 30094, 'Web TV': 30210
+}
 
-QUERY_MAP = OrderedDict(
-            [
-                ('Live TV Channel', 30113), ('Movie', 30130), ('TV Serie', 30305), ('TV Show', 30133),
-                ('Theater', 30068), ('Cartoon', 30097), ('Person', 30101)
-            ]
-        )
+QUERY_MAP = {
+    'Live TV Channel': 30113, 'Movie': 30130, 'TV Serie': 30305, 'TV Show': 30133,
+    'Theater': 30068, 'Cartoon': 30097, 'Person': 30101
+}
 
 ########################################################################################################################
 
@@ -196,16 +184,11 @@ PLAYBACK_HISTORY = join(dataPath, 'playback_history.list')
 
 ########################################################################################################################
 
-def cache_debug():
-    return Addon().getSetting('do_not_use_cache') == 'true' and Addon().getSetting('debug') == 'true'
-
-
 def separator():
     return ' - ' if Addon().getSetting('wrap_labels') == '1' else '[CR]'
 
 
 def cache_duration(duration):
-    if cache_debug():
+    if Addon().getSetting('do_not_use_cache') == 'true' and Addon().getSetting('debug') == 'true':
         return 0
-    else:
-        return duration
+    return duration

@@ -22,24 +22,17 @@ from ..modules.constants import (
 
 class Indexer:
 
-    def __init__(self):
-
-        pass
-
     @staticmethod
     def switcher():
-
-        def seq(group):
-            kodi.setSetting('live_group', group)
-            kodi.idle()
-            kodi.sleep(100)
 
         groups = list(LIVE_GROUPS.values())
         translated = [kodi.i18n(i) for i in groups]
         choice = kodi.selectDialog(heading=kodi.i18n(30049), list=[kodi.i18n(30048)] + translated + [kodi.i18n(30282)])
 
         if choice != -1:
-            seq(str(choice))
+            kodi.setSetting('live_group', str(choice))
+            kodi.idle()
+            kodi.sleep(100)
             if str(choice) != kodi.setting('live_group'):
                 kodi.refresh()
             else:
@@ -91,7 +84,7 @@ class Indexer:
             info = channel['info']
             headers = channel.get('headers')
             if headers == 'random':
-                headers = {'User-Agent': get_ua(), 'Referer': channel.get('website', 'https://www.greektv.live/')}
+                headers = {'User-Agent': get_ua(), 'Referer': website}
             drm = channel.get('drm')
             if drm:
                 if not isinstance(headers, dict):
@@ -102,31 +95,16 @@ class Indexer:
                 info = kodi.i18n(int(info))
 
             if ' - ' in info:
-                if lang_split == '0':
-                    if 'Greek' in sys_lang:
-                        info = info.partition(' - ')[2]
-                    elif 'English' in sys_lang:
-                        info = info.partition(' - ')[0]
-                    else:
-                        info = info
-                elif lang_split == '1':
+                if lang_split == '1' or (lang_split == '0' and 'English' in sys_lang):
                     info = info.partition(' - ')[0]
-                elif lang_split == '2':
+                elif lang_split == '2' or (lang_split == '0' and 'Greek' in sys_lang):
                     info = info.partition(' - ')[2]
-                else:
-                    info = info
 
-            data = (
-                {
-                    'title': title, 'image': image, 'group': str(group),
-                    'genre': kodi.i18n(group), 'plot': info, 'website': website, 'year': year
-                }
-            )
-
-            if headers:
-                data.update({'url': '|'.join([url[0], urlencode(headers)])})
-            else:
-                data.update({'url': url[0]})
+            data = {
+                'title': title, 'image': image, 'group': str(group),
+                'genre': kodi.i18n(group), 'plot': info, 'website': website, 'year': year,
+                'url': '|'.join([url[0], urlencode(headers)]) if headers else url[0]
+            }
 
             live_list.append(data)
 
@@ -156,11 +134,7 @@ class Indexer:
 
         for item in live_data:
 
-            item.update(
-                {
-                    'action': 'play', 'isPlayable': 'True', 'duration': None
-                }
-            )
+            item.update({'action': 'play', 'isPlayable': 'True', 'duration': None})
 
             if live_group_str == '10':
                 pin_cm = {'title': 30337, 'query': {'action': 'unpin', 'query': item['title']}}
@@ -187,8 +161,7 @@ class Indexer:
             elif live_group_str == '10':
                 label = kodi.i18n(30282)
             else:
-                group = int(list(LIVE_GROUPS.values())[live_group])
-                label = kodi.i18n(group)
+                label = kodi.i18n(int(group))
 
             switch = {
                 'title': label,
@@ -202,9 +175,7 @@ class Indexer:
 
         if query:
 
-            queried_list = [i for i in live_data if query in i['title'].lower()]
-
-            return queried_list
+            return [i for i in live_data if query in i['title'].lower()]
 
         kodi.setsortmethod()
         kodi.setsortmethod('production_code')

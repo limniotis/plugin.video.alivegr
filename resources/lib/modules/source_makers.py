@@ -10,7 +10,6 @@ from ..modules.constants import (
     cache_function, cache_duration, GM_BASE
 )
 from ..modules.utils import thgiliwt
-from tulip.utils import py3_dec
 from tulip.log import log
 
 
@@ -20,13 +19,7 @@ def gm_source_maker(url):
     if 'episode' in url:
 
         html = Net().http_POST(url.partition('?')[0], form_data=url.partition('?')[2]).content
-        title = iwrapper(html, 'div').__next__().text
-
-    else:
-
-        html = Net().http_GET(url).content
-
-    if 'episode' in url:
+        title = next(iwrapper(html, 'div')).text
 
         episodes = re.findall(r'''(?:<a.+?/a>|<p.+?/p>)''', html)
 
@@ -38,15 +31,14 @@ def gm_source_maker(url):
             pts = iwrapper(episode, 'a')
             lks = iwrapper(episode, 'a', ret='href')
 
-            for link_ in lks:
-                links.append(link_)
+            links.extend(lks)
 
             if '<p style="margin-top:0px; margin-bottom:4px;">' in episode:
 
-                host = iwrapper(episode, 'p').__next__().text.split('<')[0]
+                host = next(iwrapper(episode, 'p')).text.split('<')[0]
 
                 for p in pts:
-                    hl.append(''.join([host, kodi.i18n(30225), p.text]))
+                    hl.append(host + kodi.i18n(30225) + p.text)
 
             else:
 
@@ -58,23 +50,24 @@ def gm_source_maker(url):
 
         links_list = list(zip(hosts, links))
 
-        # noinspection PyUnboundLocalVariable
         data = {'links': links_list, 'title': title}
 
         if '<p class="text-muted text-justify">' in html:
 
-            plot = iwrapper(html, 'p').__next__().text
+            plot = next(iwrapper(html, 'p')).text
             data.update({'plot': plot})
 
         return data
 
-    elif 'view' in url:
+    html = Net().http_GET(url).content
 
-        link = iwrapper(html, 'a', ret='href', attrs={"class": "btn btn-primary"}).__next__()
+    if 'view' in url:
+
+        link = next(iwrapper(html, 'a', ret='href', attrs={"class": "btn btn-primary"}))
         host = urlparse(link).netloc.replace('www.', '').capitalize()
-        title = iwrapper(html, 'h3').__next__().text
+        title = next(iwrapper(html, 'h3')).text
 
-        return {'links': [(''.join([kodi.i18n(30015), host]), link)], 'title': title}
+        return {'links': [(kodi.i18n(30015) + host, link)], 'title': title}
 
     elif 'music' in url:
 
@@ -84,25 +77,17 @@ def gm_source_maker(url):
 
         link = list_search(query=title, limit=1)[0]['url']
 
-        return {'links': [(''.join([kodi.i18n(30015), 'Youtube']), link)]}
+        return {'links': [(kodi.i18n(30015) + 'Youtube', link)]}
 
     else:
 
-        title = iwrapper(html, 'h2').__next__().text
+        title = next(iwrapper(html, 'h2')).text
 
         try:
 
             info = iwrapper(html, 'h4', attrs={'style': 'text-indent:10px;'}, lazify=True)
 
-            if ',' in info[1].text:
-
-                genre = info[1].text.lstrip(u'Είδος:').split(',')
-                genre = [g.strip() for g in genre]
-
-            else:
-
-                genre = info[1].text.lstrip(u'Είδος:').strip()
-                genre = [genre]
+            genre = [g.strip() for g in info[1].text.lstrip(u'Είδος:').split(',')]
 
         except:
 
@@ -119,20 +104,20 @@ def gm_source_maker(url):
 
             if 'btn btn-primary dropdown-toggle' in button:
 
-                host = cleantitle.stripTags(iwrapper(button, 'button').__next__().text).strip()
+                host = cleantitle.stripTags(next(iwrapper(button, 'button')).text).strip()
                 parts = iwrapper(button, 'li')
 
                 for part in parts:
 
-                    part_ = iwrapper(part.text, 'a').__next__().text
-                    link = iwrapper(part.text, 'a', ret='href').__next__()
+                    part_ = next(iwrapper(part.text, 'a')).text
+                    link = next(iwrapper(part.text, 'a', ret='href'))
                     hl.append(', '.join([host, part_]))
                     links.append(link)
 
             else:
 
-                host = iwrapper(button, 'a').__next__().text
-                link = iwrapper(button, 'a', ret='href').__next__()
+                host = next(iwrapper(button, 'a')).text
+                link = next(iwrapper(button, 'a', ret='href'))
 
                 hl.append(host)
                 links.append(link)
@@ -152,9 +137,9 @@ def gm_source_maker(url):
         data = {'links': links_list, 'genre': genre, 'title': title}
 
         if 'text-align: justify' in html:
-            plot = iwrapper(html, 'p', attrs={'style': 'text-align: justify'}).__next__().text
+            plot = next(iwrapper(html, 'p', attrs={'style': 'text-align: justify'})).text
         elif 'text-justify' in html:
-            plot = iwrapper(html, 'p', attrs={'style': 'font-size:12pt.+'}).__next__().text
+            plot = next(iwrapper(html, 'p', attrs={'style': 'font-size:12pt.+'})).text
         else:
             plot = kodi.i18n(30085)
 
@@ -184,7 +169,7 @@ def gf_source_maker(var, url=None, title=None, search=None):
 
         item = [i for i in gf_movies_list if i['index'] == index][0]
         links = item['urls']
-        hosts = [''.join([kodi.i18n(30015), urlparse(i).netloc.split('.')[0].capitalize()]) for i in links]
+        hosts = [kodi.i18n(30015) + urlparse(i).netloc.split('.')[0].capitalize() for i in links]
         plot = item['plot']
         genre = item.get('genre', [kodi.i18n(30089)])
 
@@ -216,7 +201,7 @@ def gf_source_maker(var, url=None, title=None, search=None):
                 raise IndexError
 
             links = item['urls']
-            hosts = [''.join([kodi.i18n(30015), urlparse(i).netloc.split('.')[0].capitalize()]) for i in item['urls']]
+            hosts = [kodi.i18n(30015) + urlparse(i).netloc.split('.')[0].capitalize() for i in item['urls']]
             plot = item['plot']
             genre = item.get('genre', [kodi.i18n(30089)])
     
@@ -266,9 +251,7 @@ def gf_source_maker(var, url=None, title=None, search=None):
 def gist_getter(var):
 
     try:
-        result = Net().http_GET(
-            py3_dec(thgiliwt(var))
-        ).content
+        result = Net().http_GET(thgiliwt(var).decode()).content
     except binascii.Error:
         result = Net().http_GET(var).content
 

@@ -5,7 +5,6 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # See LICENSES/GPL-3.0-only for more information.
 
-import os.path
 from os import rename
 from xbmcaddon import Addon
 import pickled
@@ -33,9 +32,8 @@ def stream_picker(links):
 
     _choice = kodi.selectDialog(heading=kodi.i18n(30006), list=[link[0] for link in links])
 
-    if _choice <= len(links) and not _choice == -1:
-        popped = [link[1] for link in links][_choice]
-        return popped
+    if _choice != -1:
+        return links[_choice][1]
 
 
 def i18n():
@@ -78,7 +76,7 @@ def activate_other_addon(url, query=None):
     directory.run_builtin(addon_id=parsed.netloc, action=action, url=url, content_type=query)
 
 
-def cache_clear(notify=True):
+def cache_clear():
 
     log('Cache has been cleared')
     reset_cache()
@@ -97,30 +95,27 @@ def purge_bookmarks():
         kodi.infoDialog(kodi.i18n(30139))
 
 
-def clear_search_history():
+def clear_history(file_):
 
-    if path.exists(SEARCH_HISTORY):
-        if kodi.yesnoDialog(line1=kodi.i18n(30484).format(path.basename(SEARCH_HISTORY))):
-            kodi.deleteFile(SEARCH_HISTORY)
+    if path.exists(file_):
+        if kodi.yesnoDialog(line1=kodi.i18n(30484).format(path.basename(file_))):
+            kodi.deleteFile(file_)
             kodi.infoDialog(kodi.i18n(30402))
             kodi.refresh()
         else:
             kodi.infoDialog(kodi.i18n(30403))
     else:
         kodi.infoDialog(kodi.i18n(30347))
+
+
+def clear_search_history():
+
+    clear_history(SEARCH_HISTORY)
 
 
 def clear_playback_history():
 
-    if path.exists(PLAYBACK_HISTORY):
-        if kodi.yesnoDialog(line1=kodi.i18n(30484).format(path.basename(PLAYBACK_HISTORY))):
-            kodi.deleteFile(PLAYBACK_HISTORY)
-            kodi.infoDialog(kodi.i18n(30402))
-            kodi.refresh()
-        else:
-            kodi.infoDialog(kodi.i18n(30403))
-    else:
-        kodi.infoDialog(kodi.i18n(30347))
+    clear_history(PLAYBACK_HISTORY)
 
 
 def tools_menu():
@@ -137,16 +132,11 @@ def call_info():
     kodi.execute('ActivateWindow(programs,"plugin://plugin.video.alivegr/?content_type=executable&action=info",return)')
 
 
-def refresh():
-
-    kodi.refresh()
-
-
 def refresh_and_clear():
 
     cache_clear()
     kodi.sleep(100)
-    refresh()
+    kodi.refresh()
 
 
 def thgiliwt(s):
@@ -203,8 +193,6 @@ def pin(query):
 
     kodi.busy()
 
-    # title = kodi.infoLabel('ListItem.Title')
-    # pin_to_file(PINNED, title)
     pin_to_file(PINNED, query)
 
     kodi.infoDialog(kodi.i18n(30338), time=750)
@@ -216,8 +204,6 @@ def unpin(query):
 
     kodi.busy()
 
-    # title = kodi.infoLabel('ListItem.Title')
-    # unpin_from_file(PINNED, title)
     unpin_from_file(PINNED, query)
 
     kodi.sleep(100)
@@ -419,37 +405,21 @@ def setup_various_keymaps(keymap):
 
 def file_to_text(file_):
 
-    try:
-
-        with open(file_, encoding='utf-8') as text:
-            result = text.read()
-
-    except Exception:
-
-        with open(file_) as text:
-            result = text.read()
-
-    return result
+    with open(file_, encoding='utf-8', errors='replace') as text:
+        return text.read()
 
 
 def trim_content(f):
 
     history_size = int(Addon().getSetting('history_size'))
 
-    file_ = open(f, 'r', encoding='utf-8')
+    with open(f, 'r', encoding='utf-8') as file_:
+        lines = file_.readlines()
 
-    text = [i.rstrip('\n') for i in file_.readlines()][::-1]
+    if len(lines) > history_size:
 
-    file_.close()
-
-    if len(text) > history_size:
-
-        file_ = open(f, 'w', encoding='utf-8')
-
-        dif = history_size - len(text)
-        result = text[:dif][::-1]
-        file_.write('\n'.join(result) + '\n')
-        file_.close()
+        with open(f, 'w', encoding='utf-8') as file_:
+            file_.writelines(lines[-history_size:])
 
 
 def add_to_file(f, text, trim_file=True):
@@ -462,12 +432,10 @@ def add_to_file(f, text, trim_file=True):
         file_ = open(f, 'r', encoding='utf-8')
         if text + '\n' in file_.readlines():
             return
-        else:
-            pass
         file_.close()
 
     except IOError:
-        log('File {0} does not exist, creating new...'.format(os.path.basename(f)))
+        log('File {0} does not exist, creating new...'.format(path.basename(f)))
 
     file_ = open(f, 'a', encoding='utf-8')
 
@@ -531,14 +499,10 @@ def read_from_file(f):
 
 def changelog(get_text=False):
 
-    if Addon().getSetting('changelog_lang') == '0' and 'Greek' in kodi.infoLabel('System.Language'):
-        change_txt = 'changelog.el.txt'
-    elif (
-            Addon().getSetting('changelog_lang') == '0' and 'Greek' not in kodi.infoLabel('System.Language')
-    ) or Addon().getSetting('changelog_lang') == '1':
-        change_txt = 'changelog.en.txt'
-    else:
-        change_txt = 'changelog.el.txt'
+    lang = Addon().getSetting('changelog_lang')
+    greek = 'Greek' in kodi.infoLabel('System.Language')
+
+    change_txt = 'changelog.en.txt' if lang == '1' or (lang == '0' and not greek) else 'changelog.el.txt'
 
     change_txt = kodi.join(kodi.addonPath, 'resources', 'texts', change_txt)
 
@@ -573,13 +537,6 @@ def disclaimer():
     kodi.dialog.textviewer(kodi.addonInfo('name') + ', ' + kodi.i18n(30129), text)
 
 
-def do_not_ask_again():
-
-    kodi.setSetting('new_version_prompt', 'false')
-
-    kodi.okDialog('AliveGR', kodi.i18n(30361))
-
-
 def prompt():
 
     kodi.okDialog('AliveGR', kodi.i18n(30356).format(remote_version()))
@@ -593,7 +550,8 @@ def prompt():
     elif _choice == 1:
         kodi.close_all()
     elif _choice == 2:
-        do_not_ask_again()
+        kodi.setSetting('new_version_prompt', 'false')
+        kodi.okDialog('AliveGR', kodi.i18n(30361))
 
 
 def welcome():
@@ -622,23 +580,15 @@ def new_version(new=False):
 
             kodi.makeFile(kodi.dataPath)
 
-        try:
-            with open(version_file, mode='w', encoding='utf-8') as f:
-                f.write(kodi.version())
-        except Exception:
-            with open(version_file, 'w') as f:
-                f.write(kodi.version())
+        with open(version_file, mode='w', encoding='utf-8') as f:
+            f.write(kodi.version())
 
         return True
 
     else:
 
-        try:
-            with open(version_file, encoding='utf-8') as f:
-                version = f.read()
-        except Exception:
-            with open(version_file) as f:
-                version = f.read()
+        with open(version_file, encoding='utf-8') as f:
+            version = f.read()
 
         if version != kodi.version():
             return new_version(new=True)
@@ -679,11 +629,9 @@ def checkpoint():
 
     if new_version():
 
-        # if kodi.yesnoDialog(kodi.i18n(30267)):
-        #     changelog()
         welcome()
 
-        cache_clear(notify=False)
+        cache_clear()
         reset_idx(notify=False)
         clean_old_textures()
 

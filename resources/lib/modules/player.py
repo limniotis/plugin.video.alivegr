@@ -10,7 +10,6 @@ import json
 from xbmcaddon import Addon
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
-from random import shuffle
 from resolveurl import add_plugin_dirs, resolve as resolve_url
 from resolveurl.hmf import HostedMediaFile
 from resolveurl.resolver import ResolverError
@@ -35,23 +34,9 @@ from .constants import (
 from .utils import add_to_file
 
 
-def conditionals(url, params=None):
+def conditionals(url):
 
     add_plugin_dirs(kodi.transPath(PLUGINS_PATH))
-
-    def yt(uri):
-
-        if uri.startswith('plugin://'):
-            return uri
-
-        if len(uri) == 11:
-            uri = YT_URL + uri
-
-        try:
-            return youtube.wrapper(uri)
-        except YouTubeException as exp:
-            log('Youtube resolver failure, reason: ' + repr(exp))
-            return
 
     if not url:
         kodi.close_all()
@@ -61,7 +46,17 @@ def conditionals(url, params=None):
 
         log('Resolving with youtube addon...')
 
-        return yt(url)
+        if url.startswith('plugin://'):
+            return url
+
+        if len(url) == 11:
+            url = YT_URL + url
+
+        try:
+            return youtube.wrapper(url)
+        except YouTubeException as exp:
+            log('Youtube resolver failure, reason: ' + repr(exp))
+            return
 
     elif HostedMediaFile(url).valid_url():
 
@@ -110,15 +105,12 @@ def conditionals(url, params=None):
         return url
 
 
-def check_stream(stream_list, shuffle_list=False, start_from=0, show_pd=False, cycle_list=True):
+def check_stream(stream_list, start_from=0, show_pd=False):
 
     if not stream_list:
         return
 
-    if shuffle_list:
-        shuffle(stream_list)
-
-    for (c, (h, stream)) in list(enumerate(stream_list[start_from:])):
+    for c, (h, stream) in enumerate(stream_list[start_from:]):
 
         if stream.endswith('blank.mp4'):
             return stream
@@ -143,16 +135,11 @@ def check_stream(stream_list, shuffle_list=False, start_from=0, show_pd=False, c
             if show_pd:
                 pd.close()
         elif resolved is None:
-            if cycle_list:
-                log('Removing unplayable stream: {0}'.format(stream))
-                stream_list.remove((h, stream))
-                return check_stream(stream_list)
-            else:
-                if show_pd:
-                    _percent = percent(c, len(stream_list[start_from:]))
-                    pd.update(_percent, ''.join([kodi.i18n(30459), h.partition(': ')[2]]))
-                kodi.sleep(100)
-                continue
+            if show_pd:
+                _percent = percent(c, len(stream_list[start_from:]))
+                pd.update(_percent, ''.join([kodi.i18n(30459), h.partition(': ')[2]]))
+            kodi.sleep(100)
+            continue
 
 
 def stream_picker(links):
@@ -171,9 +158,9 @@ def stream_picker(links):
         if choice == -1:
             return
         elif Addon().getSetting('check_streams') == 'false':
-            return [link[1] for link in links][choice]
+            return links[choice][1]
         else:
-            return check_stream(links, False, start_from=choice, show_pd=True, cycle_list=False)
+            return check_stream(links, start_from=choice, show_pd=True)
 
 
 def gf_directory(title):
@@ -288,15 +275,12 @@ def directory_picker(url, argv):
 
     if Addon().getSetting('check_streams') == 'true':
 
-        if GF_BASE in url:
+        links = [] if GF_BASE in url else gm_source_maker(url)['links']
+
+        if GF_BASE in url or gf_merged:
             gf_sources = gf_source_maker(GFM_GETTER, title=params.get('title')) or gf_source_maker(GFK_GETTER, title=params.get('title'))
-            links = gf_sources['links'] if gf_sources else []
-        else:
-            links = gm_source_maker(url)['links']
-            if gf_merged:
-                gf_sources = gf_source_maker(GFM_GETTER, title=params.get('title')) or gf_source_maker(GFK_GETTER, title=params.get('title'))
-                if gf_sources:
-                    links = links + gf_sources['links']
+            if gf_sources:
+                links = links + gf_sources['links']
 
         query = json.dumps(links)
 
@@ -342,7 +326,7 @@ def dash_conditionals(stream):
 
         log('Activating adaptive parameters for this url: ' + stream)
 
-    return dash, m3u8_dash, mimetype, manifest_type
+    return dash, mimetype, manifest_type
 
 
 def player(url, params):
@@ -369,9 +353,9 @@ def player(url, params):
     if params.get('query') and Addon().getSetting('check_streams') == 'true':
         sl = json.loads(params.get('query'))
         index = int(kodi.infoLabel('Container.CurrentItem')) - 1
-        stream = check_stream(sl, False, start_from=index, show_pd=True, cycle_list=False)
+        stream = check_stream(sl, start_from=index, show_pd=True)
     else:
-        stream = conditionals(url, params)
+        stream = conditionals(url)
 
     if not stream:
 
@@ -390,7 +374,7 @@ def player(url, params):
     if not plot and 'greek-movies.com' in url:
         plot = gm_source_maker(url).get('plot')
 
-    dash, m3u8_dash, mimetype, manifest_type = dash_conditionals(stream)
+    dash, mimetype, manifest_type = dash_conditionals(stream)
 
     if stream != url:
 
@@ -420,13 +404,8 @@ def player(url, params):
         stream = sep.join([stream, urlencode(headers)])
 
     image = params.get('image')
-    name = params.get('name')
-    title = params.get('title')
 
-    if name:
-        meta = {'title': name}
-    else:
-        meta = {'title': title}
+    meta = {'title': params.get('name') or params.get('title')}
 
     if plot:
         meta.update({'plot': plot})

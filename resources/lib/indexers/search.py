@@ -19,10 +19,6 @@ from ..modules.source_makers import gf_source_maker
 
 class Indexer:
 
-    def __init__(self):
-
-        self.list = []; self.data = []
-
     def wrapper(self, str_input, category):
 
         post = 'searchcategory={0}&searchtext={1}'.format(category, quote(str_input.encode('utf-8')))
@@ -70,21 +66,15 @@ class Indexer:
                 } for i in history
             ]
 
+            icons = {
+                'Live TV Channel': 'monitor', 'TV Serie': 'series', 'TV Show': 'shows', 'Movie': 'movies',
+                'Theater': 'theater', 'Cartoon': 'kids', 'Person': 'user'
+            }
+
             for i in search_history:
-                if i['query'].split(',')[0] == 'Live TV Channel':
-                    i.update({'image': iconname('monitor'), 'isFolder': 'True'})
-                elif i['query'].split(',')[0] == 'TV Serie':
-                    i.update({'image': iconname('series'), 'isFolder': 'True'})
-                elif i['query'].split(',')[0] == 'TV Show':
-                    i.update({'image': iconname('shows'), 'isFolder': 'True'})
-                elif i['query'].split(',')[0] == 'Movie':
-                    i.update({'image': iconname('movies'), 'isFolder': 'True'})
-                elif i['query'].split(',')[0] == 'Theater':
-                    i.update({'image': iconname('theater'), 'isFolder': 'True'})
-                elif i['query'].split(',')[0] == 'Cartoon':
-                    i.update({'image': iconname('kids'), 'isFolder': 'True'})
-                elif i['query'].split(',')[0] == 'Person':
-                    i.update({'image': iconname('user'), 'isFolder': 'True'})
+                icon = icons.get(i['query'].split(',')[0])
+                if icon:
+                    i.update({'image': iconname(icon), 'isFolder': 'True'})
 
             self.list.extend(search_history)
 

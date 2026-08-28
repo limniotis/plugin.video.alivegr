@@ -23,363 +23,149 @@ name = params.get('name')
 query = params.get('query')
 
 
+# Indexers are imported on demand: a listing must not pay for the import of
+# every other section, and player pulls in resolveurl and the youtube plugin.
+
+def _live():
+    from resources.lib.indexers import live
+    return live.Indexer()
+
+
+def _vod():
+    from resources.lib.indexers import vod
+    return vod.Indexer()
+
+
+def _music():
+    from resources.lib.indexers import music
+    return music.Indexer()
+
+
+def _kids():
+    from resources.lib.indexers import kids
+    return kids.Indexer()
+
+
+def _search():
+    from resources.lib.indexers import search
+    return search.Indexer()
+
+
+def _settings():
+    from resources.lib.indexers import settings
+    return settings.Indexer()
+
+
+def _bookmarks():
+    from resources.lib.indexers import bookmarks
+    return bookmarks.Indexer()
+
+
+def _player():
+    from resources.lib.modules import player
+    return player
+
+
+def _delete_from_history():
+    f = PLAYBACK_HISTORY if query and query.startswith('{') else SEARCH_HISTORY
+    utils.process_file(f, query)
+
+
+ROUTES = {
+    'actions': lambda: _settings().actions(),
+    'activate_other_addon': lambda: utils.activate_other_addon(url, query=query),
+    'addBookmark': lambda: bm.add(url),
+    'add_to_playlist': lambda: kodi.add_to_playlist(),
+    'add_to_search_history': lambda: _search().search(action, query),
+    'album_index': lambda: _music().album_index(url),
+    'artist_index': lambda: _music().artist_index(url),
+    'bookmarks': lambda: _bookmarks().bookmarks(),
+    'cache_clear': lambda: utils.cache_clear(),
+    'call_info': lambda: utils.call_info(),
+    'cartoon_series': lambda: _vod().cartoons_series(),
+    'change_search_term': lambda: utils.process_file(SEARCH_HISTORY, query, mode='change'),
+    'changelog': lambda: utils.changelog(),
+    'clear_bookmarks': lambda: utils.purge_bookmarks(),
+    'clear_playback_history': lambda: utils.clear_playback_history(),
+    'clear_playlist': lambda: kodi.clear_playlist(),
+    'clear_search_history': lambda: utils.clear_search_history(),
+    'deleteBookmark': lambda: bm.delete(url),
+    'directory': lambda: _player().directory_picker(url, argv=argv),
+    'dmca': lambda: utils.dmca(),
+    'episodes': lambda: _vod().episodes(url),
+    'events': lambda: _vod().events(url),
+    'force': lambda: kodi.update_repositories(),
+    'generic_index': lambda: navigator.Indexer().generic(query),
+    'global_settings': lambda: kodi.global_settings(),
+    'gm_music': lambda: _music().gm_music(),
+    'gm_sports': lambda: _vod().gm_sports(),
+    'info': lambda: _settings().info(),
+    'input_stream_addons': lambda: _settings().input_stream_addons(),
+    'isa_enable': lambda: helpers.isa_enable(),
+    'kids': lambda: _kids().kids(),
+    'kids_live': lambda: _live().modular('30032'),
+    'kodi_log_upload': lambda: helpers.log_upload(),
+    'lang_choice': lambda: helpers.lang_choice(),
+    'listing': lambda: _vod().listing(url),
+    'live_m3u': lambda: _live().live_m3u(),
+    'live_switcher': lambda: _live().switcher(),
+    'live_tv': lambda: _live().live_tv(),
+    'movies': lambda: _vod().movies(),
+    'music': lambda: _music().menu(),
+    'music_live': lambda: _live().modular('30125'),
+    'openSettings': lambda: kodi.execute('Addon.OpenSettings({})'.format(kodi.addonInfo('id'))),
+    'open_link': lambda: kodi.open_web_browser(url),
+    'other_addon_settings': lambda: helpers.other_addon_settings(query),
+    'page_selector': lambda: utils.page_selector(query),
+    'pin': lambda: utils.pin(query),
+    'play': lambda: _player().player(url, params),
+    'playback_history': lambda: navigator.Indexer().playback_history(),
+    'pp': lambda: utils.pp(),
+    'purge_bookmarks': lambda: utils.purge_bookmarks(),
+    'quit': lambda: kodi.quit_kodi(),
+    'refresh': lambda: kodi.refresh(),
+    'refresh_and_clear': lambda: utils.refresh_and_clear(),
+    'reload_skin': lambda: kodi.reload_skin(),
+    'reset_idx': lambda: utils.reset_idx(forceit=query == 'force'),
+    'root': lambda: run_builtin(content_type='video'),
+    'rtmp_enable': lambda: helpers.rtmp_enable(),
+    'search': lambda: _search().search(action, query),
+    'search_index': lambda: _search().search_index(),
+    'series': lambda: _vod().series(),
+    'settings': lambda: _settings().menu(),
+    'setup_various_keymaps': lambda: utils.setup_various_keymaps(query),
+    'short_films': lambda: _vod().short_films(),
+    'shows': lambda: _vod().shows(),
+    'skin_debug': lambda: kodi.skin_debug(),
+    'songs_index': lambda: _music().songs_index(url, name),
+    'system_info': lambda: kodi.system_info(),
+    'techno_choices': lambda: _music().techno_choices(url),
+    'theater': lambda: _vod().theater(),
+    'toggle_debug': lambda: kodi.toggle_debug(),
+    'toggle_watched': lambda: kodi.toggle_watched(),
+    'tools_menu': lambda: utils.tools_menu(),
+    'unpin': lambda: utils.unpin(query),
+    'vod_switcher': lambda: _vod().vod_switcher(url),
+    'welcome': lambda: utils.welcome(),
+    'delete_from_history': lambda: _delete_from_history(),
+}
+
+
 def route():
 
     if content == 'video':
-
         navigator.Indexer().root()
-
     elif content == 'audio':
-
-        from resources.lib.indexers import music
-        music.Indexer().gm_music()
-
+        _music().gm_music()
     elif content == 'executable':
-
-        from resources.lib.indexers import settings
-        settings.Indexer().menu()
-
+        _settings().menu()
     elif action is None:
-
         navigator.Indexer().root()
+    else:
+        handler = ROUTES.get(action)
+        if handler:
+            handler()
 
-    elif action == 'root':
-
-        run_builtin(content_type='video')
-
-    elif action == 'generic_index':
-
-        navigator.Indexer().generic(query)
-
-    elif action == 'live_tv':
-
-        from resources.lib.indexers import live
-        live.Indexer().live_tv()
-
-    elif action == 'live_m3u':
-
-        from resources.lib.indexers import live
-        live.Indexer().live_m3u()
-
-    elif action == 'movies':
-
-        from resources.lib.indexers import vod
-        vod.Indexer().movies()
-
-    elif action == 'short_films':
-
-        from resources.lib.indexers import vod
-        vod.Indexer().short_films()
-
-    elif action == 'shows':
-
-        from resources.lib.indexers import vod
-        vod.Indexer().shows()
-
-    elif action == 'series':
-
-        from resources.lib.indexers import vod
-        vod.Indexer().series()
-
-    elif action == 'kids':
-
-        from resources.lib.indexers import kids
-        kids.Indexer().kids()
-
-    elif action == 'kids_live':
-
-        from resources.lib.indexers import live
-        live.Indexer().modular('30032')
-
-    elif action == 'cartoon_series':
-
-        from resources.lib.indexers import vod
-        vod.Indexer().cartoons_series()
-
-    elif action == 'listing':
-
-        from resources.lib.indexers import vod
-        vod.Indexer().listing(url)
-
-    elif action == 'episodes':
-
-        from resources.lib.indexers import vod
-        vod.Indexer().episodes(url)
-
-    elif action == 'gm_sports':
-
-        from resources.lib.indexers import vod
-        vod.Indexer().gm_sports()
-
-    elif action == 'events':
-
-        from resources.lib.indexers import vod
-        vod.Indexer().events(url)
-
-    elif action == 'theater':
-
-        from resources.lib.indexers import vod
-        vod.Indexer().theater()
-
-    elif action == 'music':
-
-        from resources.lib.indexers import music
-        music.Indexer().menu()
-
-    elif action == 'music_live':
-
-        from resources.lib.indexers import live
-        live.Indexer().modular('30125')
-
-    elif action == 'gm_music':
-
-        from resources.lib.indexers import music
-        music.Indexer().gm_music()
-
-    elif action == 'artist_index':
-
-        from resources.lib.indexers import music
-        music.Indexer().artist_index(url)
-
-    elif action == 'album_index':
-
-        from resources.lib.indexers import music
-        music.Indexer().album_index(url)
-
-    elif action == 'songs_index':
-
-        from resources.lib.indexers import music
-        music.Indexer().songs_index(url, name)
-
-    elif action == 'techno_choices':
-
-        from resources.lib.indexers import music
-        music.Indexer().techno_choices(url)
-
-    elif action == 'addBookmark':
-
-        bm.add(url)
-
-    elif action == 'deleteBookmark':
-
-        bm.delete(url)
-
-    elif action == 'pin':
-
-        utils.pin(query)
-
-    elif action == 'unpin':
-
-        utils.unpin(query)
-
-    elif action == 'bookmarks':
-
-        from resources.lib.indexers import bookmarks
-        bookmarks.Indexer().bookmarks()
-
-    elif action == 'clear_bookmarks':
-
-        # utils.clear_bookmarks()
-        utils.purge_bookmarks()
-
-    elif action == 'playback_history':
-
-        navigator.Indexer().playback_history()
-
-    elif action in ['search', 'add_to_search_history']:
-
-        from resources.lib.indexers import search
-        search.Indexer().search(action, query)
-
-    elif action == 'delete_from_history':
-
-        if query and query.startswith('{'):
-            f = PLAYBACK_HISTORY
-        else:
-            f = SEARCH_HISTORY
-
-        utils.process_file(f, query)
-
-    elif action == 'change_search_term':
-
-        utils.process_file(SEARCH_HISTORY, query, mode='change')
-
-    elif action == 'search_index':
-
-        from resources.lib.indexers import search
-        search.Indexer().search_index()
-
-    elif action == 'settings':
-
-        from resources.lib.indexers import settings
-        settings.Indexer().menu()
-
-    elif action == 'tools_menu':
-
-        utils.tools_menu()
-
-    elif action == 'openSettings':
-
-        kodi.execute('Addon.OpenSettings({})'.format(kodi.addonInfo('id')))
-
-    elif action == 'other_addon_settings':
-
-        helpers.other_addon_settings(query)
-
-    elif action == 'play':
-
-        from resources.lib.modules import player
-        player.player(url, params)
-
-    elif action == 'directory':
-
-        from resources.lib.modules import player
-        player.directory_picker(url, argv=argv)
-
-    elif action == 'live_switcher':
-
-        from resources.lib.indexers import live
-        live.Indexer().switcher()
-
-    elif action == 'vod_switcher':
-
-        from resources.lib.indexers import vod
-        vod.Indexer().vod_switcher(url)
-
-    elif action == 'page_selector':
-
-        utils.page_selector(query)
-
-    elif action == 'setup_various_keymaps':
-
-        utils.setup_various_keymaps(query)
-
-    elif action == 'add_to_playlist':
-
-        kodi.add_to_playlist()
-
-    elif action == 'clear_playlist':
-
-        kodi.clear_playlist()
-
-    elif action == 'clear_search_history':
-
-        utils.clear_search_history()
-
-    elif action == 'clear_playback_history':
-
-        utils.clear_playback_history()
-
-    elif action == 'toggle_watched':
-
-        kodi.toggle_watched()
-
-    elif action == 'toggle_debug':
-
-        kodi.toggle_debug()
-
-    elif action == 'skin_debug':
-
-        kodi.skin_debug()
-
-    elif action == 'reload_skin':
-
-        kodi.reload_skin()
-
-    elif action == 'cache_clear':
-
-        utils.cache_clear()
-
-    elif action == 'purge_bookmarks':
-
-        utils.purge_bookmarks()
-
-    elif action == 'refresh':
-
-        kodi.refresh()
-
-    elif action == 'refresh_and_clear':
-
-        utils.refresh_and_clear()
-
-    elif action == 'reset_idx':
-
-        utils.reset_idx(forceit=query == 'force')
-
-    elif action == 'isa_enable':
-
-        helpers.isa_enable()
-
-    elif action == 'rtmp_enable':
-
-        helpers.rtmp_enable()
-
-    elif action == 'changelog':
-
-        utils.changelog()
-
-    elif action == 'info':
-
-        from resources.lib.indexers import settings
-        settings.Indexer().info()
-
-    elif action == 'actions':
-
-        from resources.lib.indexers import settings
-        settings.Indexer().actions()
-
-    elif action == 'input_stream_addons':
-
-        from resources.lib.indexers import settings
-        settings.Indexer().input_stream_addons()
-
-    elif action == 'call_info':
-
-        utils.call_info()
-
-    elif action == 'open_link':
-
-        kodi.open_web_browser(url)
-
-    elif action == 'force':
-
-        kodi.update_repositories()
-
-    elif action == 'dmca':
-
-        utils.dmca()
-
-    elif action == 'pp':
-
-        utils.pp()
-
-    elif action == 'system_info':
-
-        kodi.system_info()
-
-    elif action == 'lang_choice':
-
-        helpers.lang_choice()
-
-    elif action == 'quit':
-
-        kodi.quit_kodi()
-
-    elif action == 'global_settings':
-
-        kodi.global_settings()
-
-    elif action == 'activate_other_addon':
-
-        utils.activate_other_addon(url, query=query)
-
-    elif action == 'welcome':
-
-        utils.welcome()
-
-    elif action == 'kodi_log_upload':
-
-        helpers.log_upload()
 
 if __name__ == '__main__':
     utils.checkpoint()
