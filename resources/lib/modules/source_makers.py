@@ -54,8 +54,10 @@ def gm_source_maker(url):
 
         if '<p class="text-muted text-justify">' in html:
 
-            plot = next(iwrapper(html, 'p')).text
-            data.update({'plot': plot})
+            try:
+                data.update({'plot': next(iwrapper(html, 'p')).text})
+            except StopIteration:
+                pass
 
         return data
 
@@ -136,11 +138,17 @@ def gm_source_maker(url):
 
         data = {'links': links_list, 'genre': genre, 'title': title}
 
-        if 'text-align: justify' in html:
-            plot = next(iwrapper(html, 'p', attrs={'style': 'text-align: justify'})).text
-        elif 'text-justify' in html:
-            plot = next(iwrapper(html, 'p', attrs={'style': 'font-size:12pt.+'})).text
-        else:
+        # The plot is optional metadata: a markup change must not take the whole
+        # source list down with a StopIteration. The second branch tests for a
+        # class, so it has to select on one too.
+        try:
+            if 'text-align: justify' in html:
+                plot = next(iwrapper(html, 'p', attrs={'style': 'text-align: justify'})).text
+            elif 'text-justify' in html:
+                plot = next(iwrapper(html, 'p', attrs={'class': '.*text-justify.*'})).text
+            else:
+                plot = kodi.i18n(30085)
+        except StopIteration:
             plot = kodi.i18n(30085)
 
         data.update({'plot': plot})

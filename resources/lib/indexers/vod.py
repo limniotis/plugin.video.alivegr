@@ -376,8 +376,15 @@ class Indexer:
                 else:
                     index = '1'
 
+                page_cm = {
+                    'title': kodi.i18n(30414).format(index),
+                    'query': {'action': 'page_selector', 'query': str(len(pages))}
+                }
+
                 for i in self.list:
-                    i.update({'cm': [{'title': kodi.i18n(30414).format(index), 'query': {'action': 'page_selector', 'query': str(len(pages))}}]})
+                    # Append: assigning here used to replace the bookmark and
+                    # refresh entries set above, removing them from every row.
+                    i['cm'] = i.get('cm', []) + [page_cm]
 
         if Addon().getSetting('paginate_items') == 'false' or len(self.list) <= int(Addon().getSetting('pagination_integer')):
 
@@ -565,9 +572,9 @@ class Indexer:
         for item in items:
 
             title = iwrapper(item.text, 'a', attrs={'class': 'btn btn-default'}).__next__().text
-            link = iwrapper(item, 'button', attrs={'class': 'btn btn-default'}, ret='href').__next__()
+            link = iwrapper(item.text, 'button', attrs={'class': 'btn btn-default'}, ret='href').__next__()
             link = urljoin(GM_BASE, link)
-            plot = iwrapper(item, 'span', attrs={'class': 'pull-right'}).__next__().text
+            plot = iwrapper(item.text, 'span', attrs={'class': 'pull-right'}).__next__().text
 
             self.list.append(
                 {
