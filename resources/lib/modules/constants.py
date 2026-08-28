@@ -39,6 +39,11 @@ FORUM = 'https://github.com/Twilight0/plugin.video.alivegr/discussions'
 
 M3U_LINK = 'https://raw.githubusercontent.com/komhsgr/m3u/refs/heads/main/Greekstreamtv.m3u'
 
+# ElaRepo-hosted live TV data, maintained alongside the add-on. Falls back to
+# the upstream source if unreachable.
+ELAREPO_LIVE = 'https://repo.elarepo.org/live/gr_ch.json'
+ELAREPO_M3U = 'https://repo.elarepo.org/live/greek.m3u'
+
 ########################################################################################################################
 
 GM_BASE = 'https://greek-movies.com/'

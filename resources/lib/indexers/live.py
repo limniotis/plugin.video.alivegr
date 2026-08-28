@@ -15,7 +15,9 @@ from useragents import get_ua
 from tulip.utils import py3_dec
 from ..modules.utils import thgiliwt, pinned_from_file
 from ..modules.themes import iconname
-from ..modules.constants import LIVE_GROUPS, cache_method, cache_duration, M3U_LINK, PINNED, ALIVEGR
+from ..modules.constants import (
+    LIVE_GROUPS, cache_method, cache_duration, M3U_LINK, PINNED, ALIVEGR, ELAREPO_LIVE, ELAREPO_M3U
+)
 
 
 class Indexer:
@@ -48,9 +50,11 @@ class Indexer:
 
         if kodi.setting('debug') == 'false':
 
-            result = Net().http_GET(
-                py3_dec(thgiliwt('=' + ALIVEGR))
-            ).content
+            try:
+                result = Net().http_GET(ELAREPO_LIVE).content
+                json.loads(result)
+            except Exception:
+                result = Net().http_GET(py3_dec(thgiliwt('=' + ALIVEGR))).content
 
         else:
 
@@ -212,9 +216,14 @@ class Indexer:
     @cache_method(cache_duration(480))
     def cached_live_m3u(self):
 
-        result = Net().http_GET(
-            M3U_LINK, headers={'User-Agent': 'AliveGR, version: ' + kodi.version()}
-        ).content
+        headers = {'User-Agent': 'AliveGR, version: ' + kodi.version()}
+
+        try:
+            result = Net().http_GET(ELAREPO_M3U, headers=headers).content
+            if '#EXTM3U' not in result:
+                raise ValueError('not a playlist')
+        except Exception:
+            result = Net().http_GET(M3U_LINK, headers=headers).content
 
         items = re.findall(r'#EXTINF:.+?\n.+?$', result, re.M)
 
