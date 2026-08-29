@@ -74,10 +74,14 @@ def conditionals(url):
 
         gm_sources = gm_source_maker(url)
 
-        if 'view.php?' in url or 'episode' in url:
+        # .get(): not every gm_source_maker branch is guaranteed to carry a
+        # title, and a missing one should skip the greekfun merge, not raise.
+        gm_title = gm_sources.get('title')
+
+        if 'view.php?' in url or 'episode' in url or not gm_title:
             gf = None
         else:
-            gf = gf_source_maker(GFM_GETTER, title=gm_sources['title'])
+            gf = gf_source_maker(GFM_GETTER, title=gm_title)
 
         if gf:
             links = gm_sources['links'] + gf['links']

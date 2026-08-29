@@ -79,7 +79,7 @@ def gm_source_maker(url):
 
         link = list_search(query=title, limit=1)[0]['url']
 
-        return {'links': [(kodi.i18n(30015) + 'Youtube', link)]}
+        return {'links': [(kodi.i18n(30015) + 'Youtube', link)], 'title': title}
 
     else:
 

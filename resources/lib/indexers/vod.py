@@ -163,6 +163,9 @@ class Indexer:
             Addon().setSetting('vod_group', self.data[choice])
             kodi.idle()
             kodi.sleep(100)  # ensure setting has been saved
+            # Refresh so the new grouping shows immediately, matching the live
+            # switcher; without it the old grouping stays until re-entry.
+            kodi.refresh()
         else:
             kodi.execute('Dialog.Close(all)')
 

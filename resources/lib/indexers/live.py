@@ -78,7 +78,9 @@ class Indexer:
             title = channel['name']
             image = channel['logo']
             group = channel['group']
-            group = LIVE_GROUPS[group]
+            # .get(): one channel with an unknown group name must not take the
+            # whole Live TV section down. Unknowns land in Web TV.
+            group = LIVE_GROUPS.get(group, LIVE_GROUPS['Web TV'])
             url = channel['url']
             website = channel['website']
             info = channel['info']
