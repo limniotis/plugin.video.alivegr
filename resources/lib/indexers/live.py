@@ -204,7 +204,9 @@ class Indexer:
 
             title = re.search(r',(.+)', item).group(1)
             try:
-                image = re.search(r'tvg-logo="(.+)"', item).group(1)
+                # Non-greedy: a playlist that puts another attribute after
+                # tvg-logo would otherwise capture through to the last quote.
+                image = re.search(r'tvg-logo="(.+?)"', item).group(1)
             except AttributeError:
                 image = kodi.addonInfo('icon')
             url = re.search(r'\n(.+)', item).group(1)
