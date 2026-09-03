@@ -36,10 +36,27 @@ FORUM = 'https://github.com/Twilight0/plugin.video.alivegr/discussions'
 
 M3U_LINK = 'https://raw.githubusercontent.com/komhsgr/m3u/refs/heads/main/Greekstreamtv.m3u'
 
-# ElaRepo-hosted live TV data, maintained alongside the add-on. Falls back to
-# the upstream source if unreachable.
+# Live TV data now travels with the add-on: the canonical copies live in this repository and
+# are served raw from GitHub, so the lists are versioned alongside the code that reads them and
+# can still be corrected without shipping a Kodi release.
+GITHUB_DATA = 'https://raw.githubusercontent.com/limniotis/plugin.video.alivegr/master/resources/data/'
+GITHUB_LIVE = GITHUB_DATA + 'gr_ch.json'
+GITHUB_M3U = GITHUB_DATA + 'greek.m3u'
+
+# ElaRepo-hosted live TV data, maintained alongside the add-on. Kept as the second tier: the
+# website copy stays authoritative whenever the repository copy is missing or unreadable, which
+# is also the state on any release made before those files land.
 ELAREPO_LIVE = 'https://repo.elarepo.org/live/gr_ch.json'
 ELAREPO_M3U = 'https://repo.elarepo.org/live/greek.m3u'
+
+# The playlist labels its groups in Greek and the JSON list keys them in English. Mapping both
+# onto the same LIVE_GROUPS keys is what allows the two to be merged into one Live TV list.
+# Anything unrecognised falls to Web TV, matching what live() already does for unknown groups.
+M3U_GROUPS = {
+    'ΠΑΝΕΛΛΑΔΙΚΑ': 'Panhellenic', 'ΠΑΓΚΥΠΡΙΑ': 'Pancypriot', 'ΔΙΕΘΝΗ ΔΙΚΤΥΑ': 'International',
+    'ΠΕΡΙΦΕΡΕΙΑΚΑ': 'Regional', 'ΜΟΥΣΙΚΗ': 'Music', 'ΑΘΛΗΤΙΚΑ': 'Sports',
+    'CINEMA': 'Cinema', 'KIDS': 'Kids', 'WEB TV': 'Web TV', 'WEB': 'Web TV'
+}
 
 ########################################################################################################################
 
