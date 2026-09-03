@@ -12,6 +12,7 @@ from xbmcaddon import Addon
 from urllib.parse import urljoin, urlparse, parse_qsl
 
 from tulip import directory, kodi, cleantitle
+from tulip.log import log
 from tulip.utils import list_divider
 from netclient import Net
 from useragents import spoofer
@@ -263,23 +264,47 @@ class Indexer:
 
         for item in items:
 
-            title = iwrapper(item, 'h4').__next__().text
+            # One unparseable entry used to take down the whole section: every extractor below
+            # either raises StopIteration or returns None on a miss, and nothing caught it, so
+            # the exception escaped gm_items_list and surfaced as Kodi's generic error dialog.
+            # Skipping the row and naming it in the log keeps the other few hundred usable.
+            try:
 
-            image = iwrapper(item, 'img', ret='src').__next__()
+                title = iwrapper(item, 'h4').__next__().text
 
-            image = urljoin(GM_BASE, image)
-            link = iwrapper(item, 'a', ret='href').__next__()
-            link = urljoin(GM_BASE, link)
-            label = re.search(r'(.*?) \((\d{2,4})', title)
-            year = int(label.group(2))
+                image = iwrapper(item, 'img', ret='src').__next__()
 
-            if year < 100:
-                if year >= 40:
-                    year += 1900
+                image = urljoin(GM_BASE, image)
+                link = iwrapper(item, 'a', ret='href').__next__()
+                link = urljoin(GM_BASE, link)
+
+                # Series and shows are routinely listed with no year, unlike movies, which is
+                # why those two sections broke while movies kept working. No year is ordinary
+                # data here, not corruption, so the entry is kept under its full title.
+                label = re.search(r'(.*?) \((\d{2,4})', title)
+
+                if label:
+
+                    year = int(label.group(2))
+
+                    if year < 100:
+                        if year >= 40:
+                            year += 1900
+                        else:
+                            year += 2000
+
+                    name = label.group(1)
+
                 else:
-                    year += 2000
 
-            name = label.group(1)
+                    # 0, not None: sort_method '1' sorts this list on the year key directly.
+                    year = 0
+                    name = title
+
+            except Exception:
+
+                log('Skipped an unparseable listing entry: ' + repr(item[:160]))
+                continue
 
             self.list.append(
                 {
