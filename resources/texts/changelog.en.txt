@@ -15,6 +15,7 @@
 - Live TV lists are now read from the add-on's own repository first, with the website source kept as a fallback
 - The M3U playlist channels are merged into the main Live TV list instead of sitting behind an unlinked action
 - Fixed TV shows and TV series failing to open: entries listed without a year now load, and one bad entry no longer takes down the whole section
+- Fixed sections coming up empty after switching grouping in another section: a grouping that does not exist in the section being opened now falls back to the full index instead of failing
 
 [======]
 

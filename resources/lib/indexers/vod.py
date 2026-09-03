@@ -145,8 +145,13 @@ class Indexer:
         self.list = []
         self.data = []
 
+        # Defaulted rather than left to int('') -> ValueError. This runs when any VOD section
+        # is constructed, before that section can repair the setting, so an unset or cleared
+        # value would take every one of them down at once.
+        vod_group = Addon().getSetting('vod_group') or '30213'
+
         self.switch = {
-            'title': kodi.i18n(30045).format(kodi.i18n(int(Addon().getSetting('vod_group')))),
+            'title': kodi.i18n(30045).format(kodi.i18n(int(vod_group))),
             'icon': iconname('switcher'), 'action': 'vod_switcher', 'isFolder': 'False', 'isPlayable': 'False'
         }
 
@@ -180,6 +185,18 @@ class Indexer:
         try:
             self.list = [item for item in self.data if item['group'] == vod_group]
         except Exception:
+            self.list = []
+
+        if not self.list:
+
+            # vod_group is a single global setting, but the sections do not all offer the same
+            # groupings: movies are indexed by genre and production company as well as by
+            # letter, series and shows are not. A group left over from browsing movies then
+            # matched nothing here and the section came up empty, which Kodi reports as a
+            # failed folder rather than an empty one. Falling back to the unfiltered index and
+            # resetting to ΑΡΧΙΚΑ, the one grouping every section has, keeps the section usable.
+            # The except above already did this, but only for a KeyError - a filter that
+            # matches nothing is not an exception, so it never fired for the common case.
             kodi.setSetting('vod_group', '30213')
             self.list = self.data
 
